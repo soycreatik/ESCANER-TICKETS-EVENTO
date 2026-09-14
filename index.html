@@ -3,32 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELEGIDOS - Validador de Tickets</title>
+    <title>ELEGIDOS - Validador en Tiempo Real</title>
     
     <link rel="icon" type="image/png" href="LOGOS/ELEGIDOS VER.2.png">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@700;900&family=Inter:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
     <style>
         :root {
             --bg-color: #000000; 
             --card-bg: rgba(15, 15, 15, 0.65); 
             --card-border: rgba(227, 218, 201, 0.15); 
-            --card-border-hover: rgba(227, 218, 201, 0.4);
             --text-main: #E3DAC9; 
             --text-muted: #9c978e;
             --accent-color: #D5C7A3; 
-            --accent-glow: rgba(227, 218, 201, 0.2);
+            --accent-blue: #1f6beb;
+            --accent-purple: #9333ea;
             --status-valid: rgba(35, 134, 54, 0.85);
             --status-used: rgba(217, 119, 6, 0.85);
             --status-invalid: rgba(218, 54, 51, 0.85);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
 
         body {
             background-color: var(--bg-color);
@@ -43,10 +42,8 @@
             position: relative;
         }
 
-        /* --- FONDO VIDRIO Y RUCO --- */
         .site-bg-image {
-            position: fixed;
-            top: -5%; left: -5%; width: 110vw; height: 110vh;
+            position: fixed; top: -5%; left: -5%; width: 110vw; height: 110vh;
             background: url('FOTOS/759199906_122127072651351241_6293598853126747394_n.jpg') center center / cover no-repeat;
             background-attachment: fixed;
             filter: blur(4px) brightness(0.25) contrast(1.2); 
@@ -72,19 +69,15 @@
             background: radial-gradient(circle, rgba(227, 218, 201, 0.12) 0%, transparent 60%);
         }
 
-        /* --- TARJETA PRINCIPAL Y COMPONENTES --- */
         .glass-card {
-            width: 100%;
-            max-width: 440px;
+            width: 100%; max-width: 440px;
             background: var(--card-bg);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--card-border);
-            border-radius: 24px;
-            padding: 35px;
+            border-radius: 24px; padding: 35px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-            text-align: center;
-            z-index: 2;
+            text-align: center; z-index: 2;
         }
 
         .badge {
@@ -94,102 +87,45 @@
             border: 1px solid rgba(227, 218, 201, 0.2);
         }
 
-        h2 {
-            font-size: 1.8rem;
-            font-weight: 900;
-            letter-spacing: 2px;
-            color: var(--text-main);
-            text-shadow: 0 0 15px rgba(227, 218, 201, 0.3);
-            text-transform: uppercase;
+        h2 { font-size: 1.8rem; font-weight: 900; letter-spacing: 2px; color: var(--text-main); text-transform: uppercase; }
+        .subtitle { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; }
+
+        .mode-selector {
+            display: flex; background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--card-border); border-radius: 14px; padding: 4px; margin-bottom: 20px;
         }
 
-        .subtitle {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 20px;
+        .mode-btn {
+            flex: 1; background: transparent; border: none; color: var(--text-muted);
+            padding: 8px 4px; font-size: 0.7rem; font-weight: 700; border-radius: 10px; cursor: pointer; transition: all 0.3s ease;
         }
+        .mode-btn.active { background: var(--accent-color); color: #000; box-shadow: 0 0 15px rgba(213, 199, 163, 0.3); }
 
-        .stats-bar {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 12px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-around;
-        }
-
-        .stats-bar div {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            font-weight: 500;
-        }
-
-        .stats-bar div span {
-            display: block;
-            font-size: 1.3rem;
-            font-weight: 900;
-            color: var(--text-main);
-            margin-top: 2px;
-        }
-
-        #reader {
-            width: 100%;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid var(--card-border);
-            background: rgba(0,0,0,0.5);
-        }
+        #reader { width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid var(--card-border); background: rgba(0,0,0,0.5); }
 
         .result-box {
-            margin-top: 20px;
-            padding: 18px;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            display: none;
-            backdrop-filter: blur(10px);
-            animation: fadeIn 0.3s ease-in-out;
-            border: 1px solid rgba(255,255,255,0.2);
+            margin-top: 20px; padding: 18px; border-radius: 12px; font-size: 1.1rem; font-weight: 700;
+            display: none; backdrop-filter: blur(10px); animation: fadeIn 0.3s ease-in-out; border: 1px solid rgba(255,255,255,0.2);
         }
 
         .valid { background-color: var(--status-valid); color: #fff; box-shadow: 0 0 25px rgba(35, 134, 54, 0.4); }
         .invalid { background-color: var(--status-invalid); color: #fff; box-shadow: 0 0 25px rgba(218, 54, 51, 0.4); }
         .used { background-color: var(--status-used); color: #fff; box-shadow: 0 0 25px rgba(217, 119, 6, 0.4); }
 
-        .btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 20px;
-        }
-
+        .btn-group { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
         .pill-btn {
-            background: var(--accent-color); color: #000000;
-            padding: 12px 24px; border-radius: 50px; font-weight: 700;
-            border: none; cursor: pointer; transition: all 0.3s ease; font-size: 0.9rem; text-align: center;
+            background: var(--accent-color); color: #000000; padding: 12px 24px; border-radius: 50px;
+            font-weight: 700; border: none; cursor: pointer; transition: all 0.3s ease; font-size: 0.9rem; text-align: center;
         }
         .pill-btn:hover { background: #E3DAC9; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(227, 218, 201, 0.3); }
 
         .btn-outline { background: transparent; border: 1px solid rgba(227, 218, 201, 0.3); color: var(--text-main); }
         .btn-outline:hover { background: rgba(227, 218, 201, 0.08); border-color: rgba(227, 218, 201, 0.6); }
 
-        .btn-reset {
-            background: transparent;
-            color: var(--text-muted);
-            border: none;
-            font-size: 0.75rem;
-            margin-top: 15px;
-            cursor: pointer;
-            transition: color 0.2s;
-        }
+        .btn-reset { background: transparent; color: var(--text-muted); border: none; font-size: 0.75rem; margin-top: 15px; cursor: pointer; }
         .btn-reset:hover { color: var(--text-main); }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     </style>
     <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
@@ -201,18 +137,17 @@
     <div class="cursor-glow" id="cursor-glow"></div>
 
     <div class="glass-card">
-        <div class="badge">Control de Acceso</div>
+        <div class="badge" id="badge-mode">Apartado: Asistencia</div>
         <h2>ELEGIDOS</h2>
-        <div class="subtitle">Validador de Tickets 2026</div>
+        <div class="subtitle" id="subtitle-mode">Tiempo Real Sincronizado</div>
 
-        <div class="stats-bar">
-            <div>Total<span id="stat-total">200</span></div>
-            <div>Ingresados<span id="stat-usados" style="color: var(--accent-color);">0</span></div>
-            <div>Restantes<span id="stat-restantes">200</span></div>
+        <div class="mode-selector">
+            <button class="mode-btn active" id="btn-asistencia" onclick="cambiarModo('asistencia')">ASISTENCIA</button>
+            <button class="mode-btn" id="btn-masterclass" onclick="cambiarModo('masterclass')">MASTERCLASS</button>
+            <button class="mode-btn" id="btn-festival" onclick="cambiarModo('festival')">FESTIVAL</button>
         </div>
         
         <div id="reader"></div>
-
         <div id="result" class="result-box"></div>
 
         <div class="btn-group">
@@ -220,35 +155,133 @@
             <button class="pill-btn btn-outline" onclick="exportarReporte()">Descargar Reporte CSV ↗</button>
         </div>
 
-        <button class="btn-reset" onclick="resetearBaseDatos()">Reiniciar todos los tickets a 0</button>
+        <button class="btn-reset" onclick="resetearBaseDatosModo()">Reiniciar registros de este apartado</button>
     </div>
 
 <script>
-    // 1. GENERAR BASE DE DATOS INICIAL DE LOS 200 TICKETS (ELEGIDOS-2026-001 al 200)
-    function generarTicketsBase() {
-        let base = {};
-        for (let i = 1; i <= 200; i++) {
-            let num = String(i).padStart(3, '0');
-            let codigo = `ELEGIDOS-2026-${num}`;
-            base[codigo] = { usado: false, fechaIngreso: null };
+    // --- TUS CREDENCIALES DE FIREBASE ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyAL_1473Guz-pf8_kcNtHU6iUT4e1DOlrY",
+        authDomain: "elegidosvalidador.firebaseapp.com",
+        databaseURL: "https://elegidosvalidador-default-rtdb.firebaseio.com",
+        projectId: "elegidosvalidador",
+        storageBucket: "elegidosvalidador.firebasestorage.app",
+        messagingSenderId: "944242599608",
+        appId: "1:944242599608:web:8fae4e722cf19a8820f64d"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Lista oficial de los 97 inscritos
+    const alumnosInscritos = [
+        "Adriana Orellana", "Alessandro Silvas", "Alexis Garcia", "Alicia Martínez", 
+        "Alison Zepeda", "Allison Batres", "Anderson Garcia", "Andrés Mejía", 
+        "Arnold Parada", "Beily Michelle", "Blanca Funes", "Blanca López", 
+        "Brandon Amaya", "Brenda Ramos", "Brenda Vásquez", "Briseida Escobar", 
+        "Britanny Ramos", "Carlos Montes", "Daniela Canjura", "Daniela Pérez", 
+        "Dennys Flores", "Didier Rivera", "Eduardo Vásquez", "Edwin Mancia", 
+        "Elida Galdámez", "Emely Pérez", "Erick Alfaro", "Evelyn Hernàndez", 
+        "Fernando Alfaro", "Fátima Lemus", "Genesis Pineda", "Gerson Alvarado", 
+        "Harvin Arriola", "Hazel Villalobos", "Helen Bonilla", "Hugo García", 
+        "Héctor López", "Ingrid Zelaya", "Jeferson García", "Jefferson Amaya", 
+        "Jefferson Cardoza", "Jefferson García", "Jefferson Menjivar", "Jeremy Garcia", 
+        "Jeremy Ramirez", "Johana Aguilar", "Jose Cordero", "Jose Emmanuel", 
+        "Josué Guzmán", "José Espinoza", "José Gómez", "José Leiva", "José Martínez", 
+        "José Pascasio", "José Rodríguez", "Juan Dueñas", "Justin Bautista", 
+        "Karla Rojas", "Keiry Martinez", "Kevin Abarca", "Kevin Rodriguez", 
+        "Lilian Córdova", "Luis Trejos", "Luz Abarca", "Maite Zelaya", "Marcos Estrada", 
+        "Maria Lazo", "Maritza Sibrian", "Maritza Zaldivar", "Marjorie Zepeda", 
+        "María Molina", "María Saravia", "Matthew Ramos", "Maybelline Maldonado", 
+        "Maybelline Rodas", "Megan Rosales", "Miguel Siguachi", "Moris Reyes", 
+        "Nathalie", "Noé Umaña", "Priscila Duran", "Priscila Guevara", "Raquel Meléndez", 
+        "Ricardo Peña", "Roberto Coto", "Rodrigo Rivera", "Stephanie Alfaro", 
+        "Steven Javier", "Steven Serrano", "Susana Hernández", "Tatiana Gómez", 
+        "Tatiana Osorto", "Walter Escalante", "Walter Hernández", "Wendy Marroquín", 
+        "Wendy Ramírez", "Wilber Guzmán"
+    ];
+
+    let modoActual = 'asistencia'; // 'asistencia', 'masterclass', 'festival'
+    let dbCache = {}; 
+
+    // Inicializar datos en Firebase para los 3 apartados
+    function inicializarNubeSiEsNecesario() {
+        // 1. ASISTENCIA (CLASE-2026-xxx)
+        db.ref('asistencia').once('value', (snapshot) => {
+            if (!snapshot.exists()) {
+                let base = {};
+                for (let i = 0; i < 200; i++) {
+                    let num = String(i + 1).padStart(3, '0');
+                    let codigo = `CLASE-2026-${num}`;
+                    let nombreAsignado = (i < alumnosInscritos.length) ? alumnosInscritos[i] : `Cupo Extra / Rezagado #${(i - alumnosInscritos.length) + 1}`;
+                    base[codigo] = { tipo: 'ALUMNO INSCRITO', nombre: nombreAsignado, usado: false, fechaIngreso: null };
+                }
+                db.ref('asistencia').set(base);
+            }
+        });
+
+        // 2. MASTERCLASS DREAMEZ (DREAMEZ-2026-xxx)
+        db.ref('masterclass').once('value', (snapshot) => {
+            if (!snapshot.exists()) {
+                let base = {};
+                for (let i = 1; i <= 200; i++) {
+                    let num = String(i).padStart(3, '0');
+                    let codigo = `DREAMEZ-2026-${num}`;
+                    base[codigo] = { tipo: 'MASTERCLASS DREAMEZ', nombre: `Participante Masterclass Dreamez #${i}`, usado: false, fechaIngreso: null };
+                }
+                db.ref('masterclass').set(base);
+            }
+        });
+
+        // 3. FESTIVAL CREATIVO ELEGIDOS (FESTIVAL-2026-xxx)
+        db.ref('festival').once('value', (snapshot) => {
+            if (!snapshot.exists()) {
+                let base = {};
+                for (let i = 1; i <= 200; i++) {
+                    let num = String(i).padStart(3, '0');
+                    let codigo = `FESTIVAL-2026-${num}`;
+                    base[codigo] = { tipo: 'FESTIVAL CREATIVO', nombre: `Invitado General Festival #${i}`, usado: false, fechaIngreso: null };
+                }
+                db.ref('festival').set(base);
+            }
+        });
+    }
+
+    function escucharCambiosEnTiempoReal() {
+        db.ref(modoActual).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                dbCache = snapshot.val();
+            }
+        });
+    }
+
+    function cambiarModo(modo) {
+        modoActual = modo;
+        if(html5QrcodeScanner) {
+            html5QrcodeScanner.clear().catch(e => {});
         }
-        return base;
-    }
+        document.getElementById('result').style.display = 'none';
 
-    let dbTickets = JSON.parse(localStorage.getItem('dbTickets_ELEGIDOS')) || generarTicketsBase();
+        document.getElementById('btn-asistencia').classList.remove('active');
+        document.getElementById('btn-masterclass').classList.remove('active');
+        document.getElementById('btn-festival').classList.remove('active');
 
-    function actualizarEstadisticas() {
-        const total = Object.keys(dbTickets).length;
-        const usados = Object.values(dbTickets).filter(t => t.usado).length;
+        if(modo === 'asistencia') {
+            document.getElementById('btn-asistencia').classList.add('active');
+            document.getElementById('badge-mode').innerText = "Apartado: Asistencia";
+            document.getElementById('subtitle-mode').innerText = "Control de Ingreso de Inscritos";
+        } else if(modo === 'masterclass') {
+            document.getElementById('btn-masterclass').classList.add('active');
+            document.getElementById('badge-mode').innerText = "Apartado: Masterclass";
+            document.getElementById('subtitle-mode').innerText = "Masterclass DREAMEZ";
+        } else {
+            document.getElementById('btn-festival').classList.add('active');
+            document.getElementById('badge-mode').innerText = "Apartado: Festival";
+            document.getElementById('subtitle-mode').innerText = "Festival Creativo ELEGIDOS";
+        }
         
-        document.getElementById('stat-total').innerText = total;
-        document.getElementById('stat-usados').innerText = usados;
-        document.getElementById('stat-restantes').innerText = total - usados;
-    }
-
-    function guardarBaseDatos() {
-        localStorage.setItem('dbTickets_ELEGIDOS', JSON.stringify(dbTickets));
-        actualizarEstadisticas();
+        escucharCambiosEnTiempoReal();
+        inicializarEscaner();
     }
 
     let html5QrcodeScanner;
@@ -263,22 +296,31 @@
 
         const token = decodedText.trim();
 
-        if (dbTickets[token]) {
-            if (dbTickets[token].usado) {
+        if (dbCache[token]) {
+            if (dbCache[token].usado) {
                 resultDiv.className = "result-box used";
-                resultDiv.innerHTML = `⚠️ TICKET YA USADO<br><small style="font-size:0.8rem; font-weight:normal;">Código: ${token}</small><br><small style="font-size:0.75rem; font-weight:normal;">Hora: ${dbTickets[token].fechaIngreso}</small>`;
+                resultDiv.innerHTML = `⚠️ YA INGRESÓ ANTERIORMENTE<br>
+                <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${dbCache[token].nombre}</h3>
+                <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
+                <small style="font-size:0.75rem; font-weight:normal;">Hora: ${dbCache[token].fechaIngreso}</small>`;
             } else {
                 const horaActual = new Date().toLocaleTimeString();
-                dbTickets[token].usado = true;
-                dbTickets[token].fechaIngreso = horaActual;
-                guardarBaseDatos();
-
-                resultDiv.className = "result-box valid";
-                resultDiv.innerHTML = `✅ ACCESO CONCEDIDO<br><small style="font-size:0.8rem; font-weight:normal;">Código: ${token}</small>`;
+                
+                db.ref(`${modoActual}/${token}`).update({
+                    usado: true,
+                    fechaIngreso: horaActual
+                }).then(() => {
+                    resultDiv.style.backgroundColor = (modoActual === 'asistencia') ? "var(--accent-blue)" : (modoActual === 'masterclass' ? "var(--accent-purple)" : "var(--status-valid)");
+                    resultDiv.className = "result-box valid";
+                    resultDiv.innerHTML = `✅ ACCESO CONCEDIDO<br>
+                    <h3 style="margin: 8px 0; color: #fff; font-size:1.4rem; text-transform: uppercase;">${dbCache[token].nombre}</h3>
+                    <small style="color:rgba(255,255,255,0.9); font-size:0.9rem;">Cód: ${token}</small>`;
+                });
             }
         } else {
             resultDiv.className = "result-box invalid";
-            resultDiv.innerHTML = `❌ CÓDIGO INVÁLIDO<br><small style="font-size:0.8rem; font-weight:normal;">${token}</small>`;
+            resultDiv.style.backgroundColor = "var(--status-invalid)";
+            resultDiv.innerHTML = `❌ CÓDIGO NO VÁLIDO<br><small style="font-size:0.8rem; font-weight:normal;">${token}</small>`;
         }
     }
 
@@ -297,29 +339,53 @@
     }
 
     function exportarReporte() {
-        let csvContent = "data:text/csv;charset=utf-8,Codigo,Estado,Hora_Ingreso\n";
-        for (let id in dbTickets) {
-            let t = dbTickets[id];
-            csvContent += `${id},${t.usado ? 'INGRESADO' : 'NO ASISTIO'},${t.fechaIngreso || '-'}\n`;
+        let csvContent = "data:text/csv;charset=utf-8,Codigo,Nombre,Tipo,Estado,Hora_Ingreso\n";
+        for (let id in dbCache) {
+            let t = dbCache[id];
+            csvContent += `${id},"${t.nombre}",${t.tipo},${t.usado ? 'INGRESADO' : 'NO ASISTIO'},${t.fechaIngreso || '-'}\n`;
         }
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "reporte_asistencia_elegidos.csv");
+        link.setAttribute("download", `reporte_${modoActual}_tiempo_real.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     }
 
-    function resetearBaseDatos() {
-        if (confirm("¿Seguro que quieres borrar los registros de ingreso y reiniciar a 0?")) {
-            dbTickets = generarTicketsBase();
-            guardarBaseDatos();
-            alert("Base de datos reiniciada.");
+    function resetearBaseDatosModo() {
+        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube del apartado ${modoActual.toUpperCase()}?`)) {
+            if(modoActual === 'asistencia') {
+                let base = {};
+                for (let i = 0; i < 200; i++) {
+                    let num = String(i + 1).padStart(3, '0');
+                    let codigo = `CLASE-2026-${num}`;
+                    let nombreAsignado = (i < alumnosInscritos.length) ? alumnosInscritos[i] : `Cupo Extra / Rezagado #${(i - alumnosInscritos.length) + 1}`;
+                    base[codigo] = { tipo: 'ALUMNO INSCRITO', nombre: nombreAsignado, usado: false, fechaIngreso: null };
+                }
+                db.ref('asistencia').set(base);
+            } else if(modoActual === 'masterclass') {
+                let base = {};
+                for (let i = 1; i <= 200; i++) {
+                    let num = String(i).padStart(3, '0');
+                    let codigo = `DREAMEZ-2026-${num}`;
+                    base[codigo] = { tipo: 'MASTERCLASS DREAMEZ', nombre: `Participante Masterclass Dreamez #${i}`, usado: false, fechaIngreso: null };
+                }
+                db.ref('masterclass').set(base);
+            } else {
+                let base = {};
+                for (let i = 1; i <= 200; i++) {
+                    let num = String(i).padStart(3, '0');
+                    let codigo = `FESTIVAL-2026-${num}`;
+                    base[codigo] = { tipo: 'FESTIVAL CREATIVO', nombre: `Invitado General Festival #${i}`, usado: false, fechaIngreso: null };
+                }
+                db.ref('festival').set(base);
+            }
+            alert("Apartado reiniciado en la nube.");
         }
     }
 
-    // --- DESTELLO DE CURSOR ---
+    // --- EFECTO CURSOR ---
     const cursorGlow = document.getElementById('cursor-glow');
     let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
     let glowX = mouseX, glowY = mouseY;
@@ -339,8 +405,8 @@
     }
 
     window.onload = () => {
-        actualizarEstadisticas();
-        inicializarEscaner();
+        inicializarNubeSiEsNecesario();
+        cambiarModo('asistencia');
     };
 </script>
 
