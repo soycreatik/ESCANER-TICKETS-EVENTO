@@ -137,14 +137,14 @@
     <div class="cursor-glow" id="cursor-glow"></div>
 
     <div class="glass-card">
-        <div class="badge" id="badge-mode">Apartado: Asistencia</div>
+        <div class="badge" id="badge-mode">Vista General</div>
         <h2>ELEGIDOS</h2>
-        <div class="subtitle" id="subtitle-mode">Tiempo Real Sincronizado</div>
+        <div class="subtitle" id="subtitle-mode">Escáner Universal Sincronizado</div>
 
         <div class="mode-selector">
-            <button class="mode-btn active" id="btn-asistencia" onclick="cambiarModo('asistencia')">ASISTENCIA</button>
-            <button class="mode-btn" id="btn-masterclass" onclick="cambiarModo('masterclass')">MASTERCLASS</button>
-            <button class="mode-btn" id="btn-festival" onclick="cambiarModo('festival')">FESTIVAL</button>
+            <button class="mode-btn active" id="btn-asistencia" onclick="cambiarVista('asistencia')">ASISTENCIA</button>
+            <button class="mode-btn" id="btn-masterclass" onclick="cambiarVista('masterclass')">MASTERCLASS</button>
+            <button class="mode-btn" id="btn-festival" onclick="cambiarVista('festival')">FESTIVAL</button>
         </div>
         
         <div id="reader"></div>
@@ -155,7 +155,7 @@
             <button class="pill-btn btn-outline" onclick="exportarReporte()">Descargar Reporte CSV ↗</button>
         </div>
 
-        <button class="btn-reset" onclick="resetearBaseDatosModo()">Reiniciar registros de este apartado</button>
+        <button class="btn-reset" onclick="resetearBaseDatosVista()">Reiniciar registros de esta vista</button>
     </div>
 
 <script>
@@ -201,12 +201,12 @@
         "Wendy Ramírez", "Wilber Guzmán"
     ];
 
-    let modoActual = 'asistencia'; // 'asistencia', 'masterclass', 'festival'
-    let dbCache = {}; 
+    let vistaActual = 'asistencia'; // Pestaña visual seleccionada
+    let basesDatosCache = { asistencia: {}, masterclass: {}, festival: {} };
 
-    // Inicializar datos en Firebase para los 3 apartados
+    // Inicializar datos en Firebase para las 3 colecciones si están vacías
     function inicializarNubeSiEsNecesario() {
-        // 1. ASISTENCIA (CLASE-2026-xxx)
+        // 1. Asistencia (CLASE-2026-001 al 200)
         db.ref('asistencia').once('value', (snapshot) => {
             if (!snapshot.exists()) {
                 let base = {};
@@ -220,68 +220,54 @@
             }
         });
 
-        // 2. MASTERCLASS DREAMEZ (DREAMEZ-2026-xxx)
+        // 2. Masterclass (DREAMEZ-2026-001 al 200)
         db.ref('masterclass').once('value', (snapshot) => {
             if (!snapshot.exists()) {
                 let base = {};
                 for (let i = 1; i <= 200; i++) {
                     let num = String(i).padStart(3, '0');
                     let codigo = `DREAMEZ-2026-${num}`;
-                    base[codigo] = { tipo: 'MASTERCLASS DREAMEZ', nombre: `Participante Masterclass Dreamez #${i}`, usado: false, fechaIngreso: null };
+                    base[codigo] = { tipo: 'MASTERCLASS DREAMEZ', nombre: `Participante Masterclass Dreamez #${num}`, usado: false, fechaIngreso: null };
                 }
                 db.ref('masterclass').set(base);
             }
         });
 
-        // 3. FESTIVAL CREATIVO ELEGIDOS (FESTIVAL-2026-xxx)
+        // 3. Festival (FESTIVAL-2026-001 al 200)
         db.ref('festival').once('value', (snapshot) => {
             if (!snapshot.exists()) {
                 let base = {};
                 for (let i = 1; i <= 200; i++) {
                     let num = String(i).padStart(3, '0');
                     let codigo = `FESTIVAL-2026-${num}`;
-                    base[codigo] = { tipo: 'FESTIVAL CREATIVO', nombre: `Invitado General Festival #${i}`, usado: false, fechaIngreso: null };
+                    base[codigo] = { tipo: 'FESTIVAL CREATIVO', nombre: `Invitado Festival General #${num}`, usado: false, fechaIngreso: null };
                 }
                 db.ref('festival').set(base);
             }
         });
     }
 
-    function escucharCambiosEnTiempoReal() {
-        db.ref(modoActual).on('value', (snapshot) => {
-            if (snapshot.exists()) {
-                dbCache = snapshot.val();
-            }
+    // Mantener sincronizadas las 3 bases de datos en tiempo real en segundo plano
+    function escucharTodasLasBases() {
+        ['asistencia', 'masterclass', 'festival'].forEach(sec => {
+            db.ref(sec).on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    basesDatosCache[sec] = snapshot.val();
+                }
+            });
         });
     }
 
-    function cambiarModo(modo) {
-        modoActual = modo;
-        if(html5QrcodeScanner) {
-            html5QrcodeScanner.clear().catch(e => {});
-        }
-        document.getElementById('result').style.display = 'none';
-
+    function cambiarVista(vista) {
+        vistaActual = vista;
         document.getElementById('btn-asistencia').classList.remove('active');
         document.getElementById('btn-masterclass').classList.remove('active');
         document.getElementById('btn-festival').classList.remove('active');
 
-        if(modo === 'asistencia') {
-            document.getElementById('btn-asistencia').classList.add('active');
-            document.getElementById('badge-mode').innerText = "Apartado: Asistencia";
-            document.getElementById('subtitle-mode').innerText = "Control de Ingreso de Inscritos";
-        } else if(modo === 'masterclass') {
-            document.getElementById('btn-masterclass').classList.add('active');
-            document.getElementById('badge-mode').innerText = "Apartado: Masterclass";
-            document.getElementById('subtitle-mode').innerText = "Masterclass DREAMEZ";
-        } else {
-            document.getElementById('btn-festival').classList.add('active');
-            document.getElementById('badge-mode').innerText = "Apartado: Festival";
-            document.getElementById('subtitle-mode').innerText = "Festival Creativo ELEGIDOS";
-        }
-        
-        escucharCambiosEnTiempoReal();
-        inicializarEscaner();
+        document.getElementById(`btn-${vista}`).classList.add('active');
+        document.getElementById('badge-mode').innerText = `Vista: ${vista.toUpperCase()}`;
+        document.getElementById('subtitle-mode').innerText = "Escáner Universal Sincronizado";
+        document.getElementById('result').style.display = 'none';
     }
 
     let html5QrcodeScanner;
@@ -293,31 +279,52 @@
 
         const resultDiv = document.getElementById('result');
         resultDiv.style.display = 'block';
-
         const token = decodedText.trim();
 
-        if (dbCache[token]) {
-            if (dbCache[token].usado) {
+        // BUSCAR AUTOMÁTICAMENTE EL CÓDIGO EN CUALQUIERA DE LAS 3 CATEGORÍAS (UNIVERSAL)
+        let categoriaEncontrada = null;
+        let datosTicket = null;
+
+        if (token.startsWith("CLASE-") && basesDatosCache.asistencia[token]) {
+            categoriaEncontrada = 'asistencia';
+            datosTicket = basesDatosCache.asistencia[token];
+        } else if (token.startsWith("DREAMEZ-") && basesDatosCache.masterclass[token]) {
+            categoriaEncontrada = 'masterclass';
+            datosTicket = basesDatosCache.masterclass[token];
+        } else if (token.startsWith("FESTIVAL-") && basesDatosCache.festival[token]) {
+            categoriaEncontrada = 'festival';
+            datosTicket = basesDatosCache.festival[token];
+        }
+
+        if (categoriaEncontrada && datosTicket) {
+            if (datosTicket.usado) {
+                // TICKET YA USADO
                 resultDiv.className = "result-box used";
                 resultDiv.innerHTML = `⚠️ YA INGRESÓ ANTERIORMENTE<br>
-                <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${dbCache[token].nombre}</h3>
+                <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${datosTicket.nombre}</h3>
                 <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
-                <small style="font-size:0.75rem; font-weight:normal;">Hora: ${dbCache[token].fechaIngreso}</small>`;
+                <small style="font-size:0.75rem; font-weight:normal;">Hora: ${datosTicket.fechaIngreso}</small>`;
             } else {
+                // ACCESO NUEVO VÁLIDO -> Actualizar en Firebase
                 const horaActual = new Date().toLocaleTimeString();
                 
-                db.ref(`${modoActual}/${token}`).update({
+                db.ref(`${categoriaEncontrada}/${token}`).update({
                     usado: true,
                     fechaIngreso: horaActual
                 }).then(() => {
-                    resultDiv.style.backgroundColor = (modoActual === 'asistencia') ? "var(--accent-blue)" : (modoActual === 'masterclass' ? "var(--accent-purple)" : "var(--status-valid)");
+                    let colorFondo = "var(--accent-blue)";
+                    if (categoriaEncontrada === 'masterclass') colorFondo = "var(--accent-purple)";
+                    if (categoriaEncontrada === 'festival') colorFondo = "var(--status-valid)";
+
+                    resultDiv.style.backgroundColor = colorFondo;
                     resultDiv.className = "result-box valid";
-                    resultDiv.innerHTML = `✅ ACCESO CONCEDIDO<br>
-                    <h3 style="margin: 8px 0; color: #fff; font-size:1.4rem; text-transform: uppercase;">${dbCache[token].nombre}</h3>
+                    resultDiv.innerHTML = `✅ ACCESO CONCEDIDO (${categoriaEncontrada.toUpperCase()})<br>
+                    <h3 style="margin: 8px 0; color: #fff; font-size:1.4rem; text-transform: uppercase;">${datosTicket.nombre}</h3>
                     <small style="color:rgba(255,255,255,0.9); font-size:0.9rem;">Cód: ${token}</small>`;
                 });
             }
         } else {
+            // CÓDIGO NO CONOCIDO / INVÁLIDO
             resultDiv.className = "result-box invalid";
             resultDiv.style.backgroundColor = "var(--status-invalid)";
             resultDiv.innerHTML = `❌ CÓDIGO NO VÁLIDO<br><small style="font-size:0.8rem; font-weight:normal;">${token}</small>`;
@@ -339,23 +346,24 @@
     }
 
     function exportarReporte() {
+        let dbActual = basesDatosCache[vistaActual];
         let csvContent = "data:text/csv;charset=utf-8,Codigo,Nombre,Tipo,Estado,Hora_Ingreso\n";
-        for (let id in dbCache) {
-            let t = dbCache[id];
+        for (let id in dbActual) {
+            let t = dbActual[id];
             csvContent += `${id},"${t.nombre}",${t.tipo},${t.usado ? 'INGRESADO' : 'NO ASISTIO'},${t.fechaIngreso || '-'}\n`;
         }
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `reporte_${modoActual}_tiempo_real.csv`);
+        link.setAttribute("download", `reporte_${vistaActual}_tiempo_real.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     }
 
-    function resetearBaseDatosModo() {
-        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube del apartado ${modoActual.toUpperCase()}?`)) {
-            if(modoActual === 'asistencia') {
+    function resetearBaseDatosVista() {
+        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de la vista ${vistaActual.toUpperCase()}?`)) {
+            if(vistaActual === 'asistencia') {
                 let base = {};
                 for (let i = 0; i < 200; i++) {
                     let num = String(i + 1).padStart(3, '0');
@@ -364,12 +372,12 @@
                     base[codigo] = { tipo: 'ALUMNO INSCRITO', nombre: nombreAsignado, usado: false, fechaIngreso: null };
                 }
                 db.ref('asistencia').set(base);
-            } else if(modoActual === 'masterclass') {
+            } else if(vistaActual === 'masterclass') {
                 let base = {};
                 for (let i = 1; i <= 200; i++) {
                     let num = String(i).padStart(3, '0');
                     let codigo = `DREAMEZ-2026-${num}`;
-                    base[codigo] = { tipo: 'MASTERCLASS DREAMEZ', nombre: `Participante Masterclass Dreamez #${i}`, usado: false, fechaIngreso: null };
+                    base[codigo] = { tipo: 'MASTERCLASS DREAMEZ', nombre: `Participante Masterclass Dreamez #${num}`, usado: false, fechaIngreso: null };
                 }
                 db.ref('masterclass').set(base);
             } else {
@@ -377,11 +385,11 @@
                 for (let i = 1; i <= 200; i++) {
                     let num = String(i).padStart(3, '0');
                     let codigo = `FESTIVAL-2026-${num}`;
-                    base[codigo] = { tipo: 'FESTIVAL CREATIVO', nombre: `Invitado General Festival #${i}`, usado: false, fechaIngreso: null };
+                    base[codigo] = { tipo: 'FESTIVAL CREATIVO', nombre: `Invitado Festival General #${num}`, usado: false, fechaIngreso: null };
                 }
                 db.ref('festival').set(base);
             }
-            alert("Apartado reiniciado en la nube.");
+            alert("Vista reiniciada en la nube.");
         }
     }
 
@@ -406,7 +414,9 @@
 
     window.onload = () => {
         inicializarNubeSiEsNecesario();
-        cambiarModo('asistencia');
+        escucharTodasLasBases();
+        cambiarVista('asistencia');
+        inicializarEscaner();
     };
 </script>
 
