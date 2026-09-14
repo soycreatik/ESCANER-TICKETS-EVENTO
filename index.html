@@ -129,7 +129,7 @@
     <div class="glass-card">
         <div class="badge" id="badge-mode">Escáner Universal</div>
         <h2>ELEGIDOS</h2>
-        <div class="subtitle" id="subtitle-mode">Clase, Elegidos, Masterclass y Festival</div>
+        <div class="subtitle" id="subtitle-mode">Clase (Diario), Elegidos, Masterclass y Festival</div>
         
         <div id="reader"></div>
         <div id="result" class="result-box"></div>
@@ -139,7 +139,15 @@
             <button class="pill-btn btn-outline" onclick="exportarReporte()">Descargar Reporte CSV General ↗</button>
         </div>
 
-        <button class="btn-reset" onclick="resetearBaseDatosModo()">Reiniciar todos los registros</button>
+        <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--card-border);">
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">¿Error al escanear? Anular ingreso:</p>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="input-reset-codigo" placeholder="Ej: CLASE-2026-081" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 0.9rem;">
+                <button onclick="resetearCodigoManual()" style="background: var(--status-invalid); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;">Anular</button>
+            </div>
+        </div>
+
+        <button class="btn-reset" onclick="resetearBaseDatosModo()">Reiniciar TODA la base de datos general</button>
     </div>
 
 <script>
@@ -159,181 +167,97 @@
 
     // Lista oficial de los inscritos para los códigos de clase
     const alumnosInscritos = [
-        "Adriana Isabela Orellana Salinas",
-        "Alessandro Enmanuel Silvas Torres",
-        "Alexis Antonio Garcia cruz",
-        "Alicia Sugey Martínez Lara",
-        "Alison Estefany Zepeda Hernández",
-        "Allison Melissa Batres Coreas",
-        "Anderson Alexis Garcia Alfaro",
-        "Andrés Ezequiel Mejía Morán",
-        "Arnold Antonio Parada Lara",
-        "Beily Michelle",
-        "Blanca de la Cruz Funes",
-        "Blanca Isabel López Alvarenga",
-        "Brandon Zair Amaya González",
-        "Brenda Nataly Vasquez Campos",
-        "Brenda Yohana Ramos Velasquez",
-        "Briseida Sarai Escobar Orellana",
-        "Britanny Nicole Ramos",
-        "Carlos Enrique Montes Rivera",
-        "Carlos Enrique Montes Rivera",
-        "Daniela Angeline Canjura Hernández",
-        "Daniela Fernanda Pérez Ramírez",
-        "Dennys Anthony Flores Lazo",
-        "Didier Ernesto Rivera Hernández",
-        "Eduardo Wilfredo Vásquez Guevara",
-        "Edwin Antonio Mancia Alvarado",
-        "Elida Esperanza Galdámez",
-        "Emely Alessandra Pérez Alvarado",
-        "Erick Edenilson Alfaro Rodríguez",
-        "Evelyn Magdalena Hernàndez Hernàndez",
-        "Fernando Enrique Alfaro Vasquez",
-        "Fátima Andrea Lemus Vásquez",
-        "Genesis Sarai Pineda Ortiz",
-        "Gerson Danilo Alvarado Gómez",
-        "Gloria Haydee Martinez",
-        "Harvin Alexander Arriola Arevalo",
-        "Hazel Griselda Villalobos López",
-        "Helen eunice bonilla escobar",
-        "Hugo Armando García Alfaro",
-        "Héctor Manrique López vela",
-        "Ingrid Jazmín Zelaya Pérez",
-        "Jeferson David García Meléndez",
-        "Jefferson Aldair Cardoza Arriaga",
-        "Jefferson Alexander García Deras",
-        "Jefferson steve amaya López",
-        "Jefferson Leandro Menjivar Gomez",
-        "Jeremy Alexander Garcia Hernandez",
-        "Jeremy Giovanni Ramirez Ramos",
-        "Johana Carolina Aguilar Solorzano",
-        "Jose emmanuel cordero pineda",
-        "Josué Ezequiel Guzmán Vasquez",
-        "José Alberto Rodríguez Romero",
-        "José Daniel Pascasio Calderón",
-        "José Enrique Martínez Sánchez",
-        "José Francisco Leiva Palaciod",
-        "José Ismael Gómez Diaz",
-        "José Mauricio Espinoza Benítez",
-        "Juan José Dueñas Aviles",
-        "Justin Armando Bautista Hernandez",
-        "Karla Marielos Rojas Fichaud",
-        "Keiry Yamileth Martinez Rivera",
-        "Kevin Alejandro Abarca García",
-        "Kevin Enrique Rodriguez Morales",
-        "Lilian Andrea Córdova Merino",
-        "Luis Angel Trejos Urbina",
-        "Luz elena abarca flores",
-        "Maite Jamileth Zelaya Rodríguez",
-        "Marcos Isaías Estrada López",
-        "Maria Santos Lazo",
-        "Maritza Areli Sibrian HenriqueZ",
-        "Maritza Guadalupe Zaldivar Cerón",
-        "Marjorie Priscila Zepeda Beltrán",
-        "María Elena Saravia de Rivera",
-        "María Fernanda Molina Gallegos",
-        "Matthew Adonay Ramos Reyes",
-        "Maybelline Arely Rodas Vázquez",
-        "Maybelline Delgado Maldonado",
-        "Megan Alejandra Rosales Rodríguez",
-        "Miguel Alberto Siguachi",
-        "Moris Giovanni Reyes Flores",
-        "Nathalie Rosemary Medrano Ramírez",
-        "Noé Adolfo Umaña Pérez",
-        "Priscila Elizabeth Guevara García",
-        "Priscila Stephenie Duran Mariona",
-        "Raquel Saraí Meléndez Murillo",
-        "Ricardo Antonio Peña Guevara",
-        "Roberto Ismael Coto Amaya",
-        "Rodrigo Emmanuel Rivera Hernández",
-        "Stephanie Paola Alfaro Loza",
-        "Steven Adonay Javier Bolaños",
-        "Steven Antonio Serrano Cabrera",
-        "Susana Elizabeth Hernández Rivas",
-        "Tatiana Elizabeth Gómez Calles",
-        "Tatiana Yaneth Osorto Guevara",
-        "Walter Alexander Hernández Sánchez",
-        "Walter Giovanni Escalante Fuentes",
-        "Wendy Nayely Marroquín Lovo",
-        "Wendy Patricia Ramírez Velásquez",
-        "Wilber Isaac Guzmán Salazar"
+        "Adriana Isabela Orellana Salinas", "Alessandro Enmanuel Silvas Torres", "Alexis Antonio Garcia cruz",
+        "Alicia Sugey Martínez Lara", "Alison Estefany Zepeda Hernández", "Allison Melissa Batres Coreas",
+        "Anderson Alexis Garcia Alfaro", "Andrés Ezequiel Mejía Morán", "Arnold Antonio Parada Lara",
+        "Beily Michelle", "Blanca de la Cruz Funes", "Blanca Isabel López Alvarenga",
+        "Brandon Zair Amaya González", "Brenda Nataly Vasquez Campos", "Brenda Yohana Ramos Velasquez",
+        "Briseida Sarai Escobar Orellana", "Britanny Nicole Ramos", "Carlos Enrique Montes Rivera",
+        "Carlos Enrique Montes Rivera", "Daniela Angeline Canjura Hernández", "Daniela Fernanda Pérez Ramírez",
+        "Dennys Anthony Flores Lazo", "Didier Ernesto Rivera Hernández", "Eduardo Wilfredo Vásquez Guevara",
+        "Edwin Antonio Mancia Alvarado", "Elida Esperanza Galdámez", "Emely Alessandra Pérez Alvarado",
+        "Erick Edenilson Alfaro Rodríguez", "Evelyn Magdalena Hernàndez Hernàndez", "Fernando Enrique Alfaro Vasquez",
+        "Fátima Andrea Lemus Vásquez", "Genesis Sarai Pineda Ortiz", "Gerson Danilo Alvarado Gómez",
+        "Gloria Haydee Martinez", "Harvin Alexander Arriola Arevalo", "Hazel Griselda Villalobos López",
+        "Helen eunice bonilla escobar", "Hugo Armando García Alfaro", "Héctor Manrique López vela",
+        "Ingrid Jazmín Zelaya Pérez", "Jeferson David García Meléndez", "Jefferson Aldair Cardoza Arriaga",
+        "Jefferson Alexander García Deras", "Jefferson steve amaya López", "Jefferson Leandro Menjivar Gomez",
+        "Jeremy Alexander Garcia Hernandez", "Jeremy Giovanni Ramirez Ramos", "Johana Carolina Aguilar Solorzano",
+        "Jose emmanuel cordero pineda", "Josué Ezequiel Guzmán Vasquez", "José Alberto Rodríguez Romero",
+        "José Daniel Pascasio Calderón", "José Enrique Martínez Sánchez", "José Francisco Leiva Palaciod",
+        "José Ismael Gómez Diaz", "José Mauricio Espinoza Benítez", "Juan José Dueñas Aviles",
+        "Justin Armando Bautista Hernandez", "Karla Marielos Rojas Fichaud", "Keiry Yamileth Martinez Rivera",
+        "Kevin Alejandro Abarca García", "Kevin Enrique Rodriguez Morales", "Lilian Andrea Córdova Merino",
+        "Luis Angel Trejos Urbina", "Luz elena abarca flores", "Maite Jamileth Zelaya Rodríguez",
+        "Marcos Isaías Estrada López", "Maria Santos Lazo", "Maritza Areli Sibrian HenriqueZ",
+        "Maritza Guadalupe Zaldivar Cerón", "Marjorie Priscila Zepeda Beltrán", "María Elena Saravia de Rivera",
+        "María Fernanda Molina Gallegos", "Matthew Adonay Ramos Reyes", "Maybelline Arely Rodas Vázquez",
+        "Maybelline Delgado Maldonado", "Megan Alejandra Rosales Rodríguez", "Miguel Alberto Siguachi",
+        "Moris Giovanni Reyes Flores", "Nathalie Rosemary Medrano Ramírez", "Noé Adolfo Umaña Pérez",
+        "Priscila Elizabeth Guevara García", "Priscila Stephenie Duran Mariona", "Raquel Saraí Meléndez Murillo",
+        "Ricardo Antonio Peña Guevara", "Roberto Ismael Coto Amaya", "Rodrigo Emmanuel Rivera Hernández",
+        "Stephanie Paola Alfaro Loza", "Steven Adonay Javier Bolaños", "Steven Antonio Serrano Cabrera",
+        "Susana Elizabeth Hernández Rivas", "Tatiana Elizabeth Gómez Calles", "Tatiana Yaneth Osorto Guevara",
+        "Walter Alexander Hernández Sánchez", "Walter Giovanni Escalante Fuentes", "Wendy Nayely Marroquín Lovo",
+        "Wendy Patricia Ramírez Velásquez", "Wilber Isaac Guzmán Salazar"
     ];
 
-    let dbCache = {
-        clase: {},
-        elegidos: {},
-        masterclass: {},
-        festival: {}
-    }; 
+    let dbCache = { clase: {}, elegidos: {}, masterclass: {}, festival: {} }; 
+    let isScanning = false; // Seguro anti-duplicados
 
-    // Inicializar datos en Firebase para los 4 apartados
     function inicializarNubeSiEsNecesario() {
-        // 1. CLASE (CLASE-2026-xxx)
+        // 1. CLASE (Múltiples ingresos por fecha)
         db.ref('clase').once('value', (snapshot) => {
             if (!snapshot.exists()) {
                 let base = {};
-                for (let i = 0; i < 200; i++) {
-                    let num = String(i + 1).padStart(3, '0');
+                for (let i = 1; i <= 200; i++) {
+                    let num = String(i).padStart(3, '0');
                     let codigo = `CLASE-2026-${num}`;
-                    let nombreAsignado = (i < alumnosInscritos.length) ? alumnosInscritos[i] : `Entrada General Clase #${(i - alumnosInscritos.length) + 1}`;
-                    base[codigo] = { tipo: 'ASISTENCIA CLASE', nombre: nombreAsignado, usado: false, fechaIngreso: null };
+                    let nombreAsignado = (i - 1 < alumnosInscritos.length) ? alumnosInscritos[i - 1] : `Entrada General Clase #${i}`;
+                    base[codigo] = { tipo: 'ASISTENCIA CLASE', nombre: nombreAsignado }; // 'asistencias' se creará al escanear
                 }
                 db.ref('clase').set(base);
             }
         });
 
-        // 2. ELEGIDOS (ELEGIDOS-2026-xxx)
-        db.ref('elegidos').once('value', (snapshot) => {
-            if (!snapshot.exists()) {
-                let base = {};
-                for (let i = 1; i <= 200; i++) {
-                    let num = String(i).padStart(3, '0');
-                    let codigo = `ELEGIDOS-2026-${num}`;
-                    base[codigo] = { tipo: 'ENTRADA ELEGIDOS', nombre: `Entrada General Elegidos #${i}`, usado: false, fechaIngreso: null };
-                }
-                db.ref('elegidos').set(base);
-            }
-        });
+        // 2, 3 y 4. (Un solo uso)
+        const eventosUnicoUso = [
+            { id: 'elegidos', prefijo: 'ELEGIDOS-2026-', tipo: 'ENTRADA ELEGIDOS', desc: 'Entrada General Elegidos' },
+            { id: 'masterclass', prefijo: 'DREAMEZ-2026-', tipo: 'MASTERCLASS DREAMEZ', desc: 'Entrada General Masterclass' },
+            { id: 'festival', prefijo: 'FESTIVAL-2026-', tipo: 'FESTIVAL CREATIVO', desc: 'Entrada General Festival' }
+        ];
 
-        // 3. MASTERCLASS DREAMEZ (DREAMEZ-2026-xxx)
-        db.ref('masterclass').once('value', (snapshot) => {
-            if (!snapshot.exists()) {
-                let base = {};
-                for (let i = 1; i <= 200; i++) {
-                    let num = String(i).padStart(3, '0');
-                    let codigo = `DREAMEZ-2026-${num}`;
-                    base[codigo] = { tipo: 'MASTERCLASS DREAMEZ', nombre: `Entrada General Masterclass #${i}`, usado: false, fechaIngreso: null };
+        eventosUnicoUso.forEach(evento => {
+            db.ref(evento.id).once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    let base = {};
+                    for (let i = 1; i <= 200; i++) {
+                        let num = String(i).padStart(3, '0');
+                        let codigo = `${evento.prefijo}${num}`;
+                        base[codigo] = { tipo: evento.tipo, nombre: `${evento.desc} #${i}`, usado: false, fechaIngreso: null };
+                    }
+                    db.ref(evento.id).set(base);
                 }
-                db.ref('masterclass').set(base);
-            }
-        });
-
-        // 4. FESTIVAL CREATIVO ELEGIDOS (FESTIVAL-2026-xxx)
-        db.ref('festival').once('value', (snapshot) => {
-            if (!snapshot.exists()) {
-                let base = {};
-                for (let i = 1; i <= 200; i++) {
-                    let num = String(i).padStart(3, '0');
-                    let codigo = `FESTIVAL-2026-${num}`;
-                    base[codigo] = { tipo: 'FESTIVAL CREATIVO', nombre: `Entrada General Festival #${i}`, usado: false, fechaIngreso: null };
-                }
-                db.ref('festival').set(base);
-            }
+            });
         });
     }
 
     function escucharCambiosEnTiempoReal() {
-        db.ref('clase').on('value', (snapshot) => { if (snapshot.exists()) dbCache.clase = snapshot.val(); });
-        db.ref('elegidos').on('value', (snapshot) => { if (snapshot.exists()) dbCache.elegidos = snapshot.val(); });
-        db.ref('masterclass').on('value', (snapshot) => { if (snapshot.exists()) dbCache.masterclass = snapshot.val(); });
-        db.ref('festival').on('value', (snapshot) => { if (snapshot.exists()) dbCache.festival = snapshot.val(); });
+        ['clase', 'elegidos', 'masterclass', 'festival'].forEach(seccion => {
+            db.ref(seccion).on('value', (snapshot) => {
+                if (snapshot.exists()) dbCache[seccion] = snapshot.val();
+            });
+        });
     }
 
     let html5QrcodeScanner;
 
     function onScanSuccess(decodedText) {
+        if (isScanning) return; // Si ya está procesando un código, ignora los siguientes mili-segundos
+        isScanning = true;
+
         if (html5QrcodeScanner) {
-            html5QrcodeScanner.clear();
+            html5QrcodeScanner.clear().catch(e => console.log(e));
         }
 
         const resultDiv = document.getElementById('result');
@@ -343,45 +267,34 @@
         let modoDetectado = null;
         let colorFondo = "";
 
-        // Detección automática según el prefijo del código
-        if (token.startsWith("CLASE-2026-")) {
-            modoDetectado = 'clase';
-            colorFondo = "var(--accent-blue)";
-        } else if (token.startsWith("ELEGIDOS-2026-")) {
-            modoDetectado = 'elegidos';
-            colorFondo = "var(--accent-gold)";
-        } else if (token.startsWith("DREAMEZ-2026-")) {
-            modoDetectado = 'masterclass';
-            colorFondo = "var(--accent-purple)";
-        } else if (token.startsWith("FESTIVAL-2026-")) {
-            modoDetectado = 'festival';
-            colorFondo = "var(--status-valid)";
-        }
+        if (token.startsWith("CLASE-2026-")) { modoDetectado = 'clase'; colorFondo = "var(--accent-blue)"; }
+        else if (token.startsWith("ELEGIDOS-2026-")) { modoDetectado = 'elegidos'; colorFondo = "var(--accent-gold)"; }
+        else if (token.startsWith("DREAMEZ-2026-")) { modoDetectado = 'masterclass'; colorFondo = "var(--accent-purple)"; }
+        else if (token.startsWith("FESTIVAL-2026-")) { modoDetectado = 'festival'; colorFondo = "var(--status-valid)"; }
 
         if (modoDetectado && dbCache[modoDetectado] && dbCache[modoDetectado][token]) {
             let registro = dbCache[modoDetectado][token];
+            const horaActual = new Date().toLocaleTimeString();
+            const fechaHoy = new Date().toISOString().split('T')[0]; // Genera: YYYY-MM-DD
 
-            if (registro.usado) {
-                resultDiv.className = "result-box used";
-                resultDiv.style.backgroundColor = "var(--status-used)";
-                resultDiv.innerHTML = `⚠️ YA INGRESÓ ANTERIORMENTE<br>
-                <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${registro.nombre}</h3>
-                <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
-                <small style="font-size:0.75rem; font-weight:normal;">Hora: ${registro.fechaIngreso} | ${modoDetectado.toUpperCase()}</small>`;
+            if (modoDetectado === 'clase') {
+                // LOGICA DE ASISTENCIA POR DÍA
+                if (registro.asistencias && registro.asistencias[fechaHoy]) {
+                    mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.asistencias[fechaHoy]} | HOY`, modoDetectado, "var(--status-used)");
+                } else {
+                    db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActual).then(() => {
+                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo);
+                    });
+                }
             } else {
-                const horaActual = new Date().toLocaleTimeString();
-                
-                db.ref(`${modoDetectado}/${token}`).update({
-                    usado: true,
-                    fechaIngreso: horaActual
-                }).then(() => {
-                    resultDiv.style.backgroundColor = colorFondo;
-                    resultDiv.className = "result-box valid";
-                    resultDiv.innerHTML = `✅ ACCESO CONCEDIDO<br>
-                    <h3 style="margin: 8px 0; color: #fff; font-size:1.4rem; text-transform: uppercase;">${registro.nombre}</h3>
-                    <small style="color:rgba(255,255,255,0.9); font-size:0.9rem;">Cód: ${token}</small><br>
-                    <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${modoDetectado.toUpperCase()}</small>`;
-                });
+                // LOGICA DE USO ÚNICO
+                if (registro.usado) {
+                    mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.fechaIngreso}`, modoDetectado, "var(--status-used)");
+                } else {
+                    db.ref(`${modoDetectado}/${token}`).update({ usado: true, fechaIngreso: horaActual }).then(() => {
+                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo);
+                    });
+                }
             }
         } else {
             resultDiv.className = "result-box invalid";
@@ -390,30 +303,78 @@
         }
     }
 
+    function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo) {
+        div.style.backgroundColor = colorFondo;
+        if (exito) {
+            div.className = "result-box valid";
+            div.innerHTML = `✅ ACCESO CONCEDIDO<br>
+            <h3 style="margin: 8px 0; color: #fff; font-size:1.4rem; text-transform: uppercase;">${nombre}</h3>
+            <small style="color:rgba(255,255,255,0.9); font-size:0.9rem;">Cód: ${token}</small><br>
+            <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${modo.toUpperCase()}</small>`;
+        } else {
+            div.className = "result-box used";
+            div.innerHTML = `⚠️ YA INGRESÓ ANTERIORMENTE<br>
+            <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${nombre}</h3>
+            <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
+            <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${modo.toUpperCase()}</small>`;
+        }
+    }
+
+    function resetearCodigoManual() {
+        const inputField = document.getElementById('input-reset-codigo');
+        let token = inputField.value.trim().toUpperCase();
+        if(!token) return;
+
+        let modoDetectado = null;
+        if (token.startsWith("CLASE-2026-")) modoDetectado = 'clase';
+        else if (token.startsWith("ELEGIDOS-2026-")) modoDetectado = 'elegidos';
+        else if (token.startsWith("DREAMEZ-2026-")) modoDetectado = 'masterclass';
+        else if (token.startsWith("FESTIVAL-2026-")) modoDetectado = 'festival';
+
+        if (modoDetectado && dbCache[modoDetectado] && dbCache[modoDetectado][token]) {
+            if (modoDetectado === 'clase') {
+                const fechaHoy = new Date().toISOString().split('T')[0];
+                db.ref(`clase/${token}/asistencias/${fechaHoy}`).remove().then(() => {
+                    alert(`✅ Se anuló la asistencia de HOY para el código: ${token}`);
+                    inputField.value = '';
+                });
+            } else {
+                db.ref(`${modoDetectado}/${token}`).update({ usado: false, fechaIngreso: null }).then(() => {
+                    alert(`✅ Código restablecido (No Usado): ${token}`);
+                    inputField.value = '';
+                });
+            }
+        } else {
+            alert("❌ Código no válido o no encontrado en la base de datos.");
+        }
+    }
+
     function inicializarEscaner() {
-        html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", 
-            { fps: 10, qrbox: { width: 220, height: 220 } }, 
-            false
-        );
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 220, height: 220 } }, false);
         html5QrcodeScanner.render(onScanSuccess);
     }
 
     function reiniciarEscaner() {
+        isScanning = false;
         document.getElementById('result').style.display = 'none';
         inicializarEscaner();
     }
 
     function exportarReporte() {
         let csvContent = "data:text/csv;charset=utf-8,Codigo,Nombre,Tipo,Estado,Hora_Ingreso,Apartado\n";
+        const fechaHoy = new Date().toISOString().split('T')[0];
         
-        const apartados = ['clase', 'elegidos', 'masterclass', 'festival'];
-        
-        apartados.forEach(modo => {
+        ['clase', 'elegidos', 'masterclass', 'festival'].forEach(modo => {
             let data = dbCache[modo];
             for (let id in data) {
                 let t = data[id];
-                csvContent += `${id},"${t.nombre}",${t.tipo},${t.usado ? 'INGRESADO' : 'NO ASISTIO'},${t.fechaIngreso || '-'},${modo.toUpperCase()}\n`;
+                if (modo === 'clase') {
+                    let asistioHoy = (t.asistencias && t.asistencias[fechaHoy]) ? 'ASISTIÓ HOY' : 'NO ASISTIÓ HOY';
+                    let hora = (t.asistencias && t.asistencias[fechaHoy]) ? t.asistencias[fechaHoy] : '-';
+                    csvContent += `${id},"${t.nombre}",${t.tipo},${asistioHoy},${hora},${modo.toUpperCase()}\n`;
+                } else {
+                    csvContent += `${id},"${t.nombre}",${t.tipo},${t.usado ? 'INGRESADO' : 'NO ASISTIO'},${t.fechaIngreso || '-'},${modo.toUpperCase()}\n`;
+                }
             }
         });
 
@@ -429,10 +390,7 @@
     function resetearBaseDatosModo() {
         if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de TODOS los apartados (Clase, Elegidos, Masterclass y Festival)?`)) {
             Promise.all([
-                db.ref('clase').remove(),
-                db.ref('elegidos').remove(),
-                db.ref('masterclass').remove(),
-                db.ref('festival').remove()
+                db.ref('clase').remove(), db.ref('elegidos').remove(), db.ref('masterclass').remove(), db.ref('festival').remove()
             ]).then(() => {
                 inicializarNubeSiEsNecesario();
                 alert("Base de datos reiniciada correctamente para todos los apartados.");
