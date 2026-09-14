@@ -22,6 +22,7 @@
             --accent-color: #D5C7A3; 
             --accent-blue: #1f6beb;
             --accent-purple: #9333ea;
+            --accent-gold: #fbbf24;
             --status-valid: rgba(35, 134, 54, 0.85);
             --status-used: rgba(217, 119, 6, 0.85);
             --status-invalid: rgba(218, 54, 51, 0.85);
@@ -128,7 +129,7 @@
     <div class="glass-card">
         <div class="badge" id="badge-mode">Escáner Universal</div>
         <h2>ELEGIDOS</h2>
-        <div class="subtitle" id="subtitle-mode">Asistencia, Masterclass y Festival</div>
+        <div class="subtitle" id="subtitle-mode">Clase, Elegidos, Masterclass y Festival</div>
         
         <div id="reader"></div>
         <div id="result" class="result-box"></div>
@@ -156,7 +157,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Lista oficial de los 97 inscritos
+    // Lista oficial de los 97 inscritos para los códigos de clase
     const alumnosInscritos = [
         "Adriana Orellana", "Alessandro Silvas", "Alexis Garcia", "Alicia Martínez", 
         "Alison Zepeda", "Allison Batres", "Anderson Garcia", "Andrés Mejía", 
@@ -175,7 +176,7 @@
         "Karla Rojas", "Keiry Martinez", "Kevin Abarca", "Kevin Rodriguez", 
         "Lilian Córdova", "Luis Trejos", "Luz Abarca", "Maite Zelaya", "Marcos Estrada", 
         "Maria Lazo", "Maritza Sibrian", "Maritza Zaldivar", "Marjorie Zepeda", 
-        "María Molina", "María Saravia", "Matthew Ramos", "Maybelline Maldonado", 
+        "María Molina", "Maria Saravia", "Matthew Ramos", "Maybelline Maldonado", 
         "Maybelline Rodas", "Megan Rosales", "Miguel Siguachi", "Moris Reyes", 
         "Nathalie", "Noé Umaña", "Priscila Duran", "Priscila Guevara", "Raquel Meléndez", 
         "Ricardo Peña", "Roberto Coto", "Rodrigo Rivera", "Stephanie Alfaro", 
@@ -185,48 +186,62 @@
     ];
 
     let dbCache = {
-        asistencia: {},
+        clase: {},
+        elegidos: {},
         masterclass: {},
         festival: {}
     }; 
 
-    // Inicializar datos en Firebase para los 3 apartados
+    // Inicializar datos en Firebase para los 4 apartados
     function inicializarNubeSiEsNecesario() {
-        // 1. ASISTENCIA (ELEGIDOS-2026-xxx)
-        db.ref('asistencia').once('value', (snapshot) => {
+        // 1. CLASE (CLASE-2026-xxx)
+        db.ref('clase').once('value', (snapshot) => {
             if (!snapshot.exists()) {
                 let base = {};
                 for (let i = 0; i < 200; i++) {
                     let num = String(i + 1).padStart(3, '0');
-                    let codigo = `ELEGIDOS-2026-${num}`;
-                    let nombreAsignado = (i < alumnosInscritos.length) ? alumnosInscritos[i] : `Cupo Extra / Rezagado #${(i - alumnosInscritos.length) + 1}`;
-                    base[codigo] = { tipo: 'ALUMNO INSCRITO', nombre: nombreAsignado, usado: false, fechaIngreso: null };
+                    let codigo = `CLASE-2026-${num}`;
+                    let nombreAsignado = (i < alumnosInscritos.length) ? alumnosInscritos[i] : `Entrada General Clase #${(i - alumnosInscritos.length) + 1}`;
+                    base[codigo] = { tipo: 'ASISTENCIA CLASE', nombre: nombreAsignado, usado: false, fechaIngreso: null };
                 }
-                db.ref('asistencia').set(base);
+                db.ref('clase').set(base);
             }
         });
 
-        // 2. MASTERCLASS DREAMEZ (DREAMEZ-2026-xxx)
+        // 2. ELEGIDOS (ELEGIDOS-2026-xxx)
+        db.ref('elegidos').once('value', (snapshot) => {
+            if (!snapshot.exists()) {
+                let base = {};
+                for (let i = 1; i <= 200; i++) {
+                    let num = String(i).padStart(3, '0');
+                    let codigo = `ELEGIDOS-2026-${num}`;
+                    base[codigo] = { tipo: 'ENTRADA ELEGIDOS', nombre: `Entrada General Elegidos #${i}`, usado: false, fechaIngreso: null };
+                }
+                db.ref('elegidos').set(base);
+            }
+        });
+
+        // 3. MASTERCLASS DREAMEZ (DREAMEZ-2026-xxx)
         db.ref('masterclass').once('value', (snapshot) => {
             if (!snapshot.exists()) {
                 let base = {};
                 for (let i = 1; i <= 200; i++) {
                     let num = String(i).padStart(3, '0');
                     let codigo = `DREAMEZ-2026-${num}`;
-                    base[codigo] = { tipo: 'MASTERCLASS DREAMEZ', nombre: `Participante Masterclass Dreamez #${i}`, usado: false, fechaIngreso: null };
+                    base[codigo] = { tipo: 'MASTERCLASS DREAMEZ', nombre: `Entrada General Masterclass #${i}`, usado: false, fechaIngreso: null };
                 }
                 db.ref('masterclass').set(base);
             }
         });
 
-        // 3. FESTIVAL CREATIVO ELEGIDOS (FESTIVAL-2026-xxx)
+        // 4. FESTIVAL CREATIVO ELEGIDOS (FESTIVAL-2026-xxx)
         db.ref('festival').once('value', (snapshot) => {
             if (!snapshot.exists()) {
                 let base = {};
                 for (let i = 1; i <= 200; i++) {
                     let num = String(i).padStart(3, '0');
                     let codigo = `FESTIVAL-2026-${num}`;
-                    base[codigo] = { tipo: 'FESTIVAL CREATIVO', nombre: `Invitado General Festival #${i}`, usado: false, fechaIngreso: null };
+                    base[codigo] = { tipo: 'FESTIVAL CREATIVO', nombre: `Entrada General Festival #${i}`, usado: false, fechaIngreso: null };
                 }
                 db.ref('festival').set(base);
             }
@@ -234,7 +249,8 @@
     }
 
     function escucharCambiosEnTiempoReal() {
-        db.ref('asistencia').on('value', (snapshot) => { if (snapshot.exists()) dbCache.asistencia = snapshot.val(); });
+        db.ref('clase').on('value', (snapshot) => { if (snapshot.exists()) dbCache.clase = snapshot.val(); });
+        db.ref('elegidos').on('value', (snapshot) => { if (snapshot.exists()) dbCache.elegidos = snapshot.val(); });
         db.ref('masterclass').on('value', (snapshot) => { if (snapshot.exists()) dbCache.masterclass = snapshot.val(); });
         db.ref('festival').on('value', (snapshot) => { if (snapshot.exists()) dbCache.festival = snapshot.val(); });
     }
@@ -254,9 +270,12 @@
         let colorFondo = "";
 
         // Detección automática según el prefijo del código
-        if (token.startsWith("ELEGIDOS-2026-")) {
-            modoDetectado = 'asistencia';
+        if (token.startsWith("CLASE-2026-")) {
+            modoDetectado = 'clase';
             colorFondo = "var(--accent-blue)";
+        } else if (token.startsWith("ELEGIDOS-2026-")) {
+            modoDetectado = 'elegidos';
+            colorFondo = "var(--accent-gold)";
         } else if (token.startsWith("DREAMEZ-2026-")) {
             modoDetectado = 'masterclass';
             colorFondo = "var(--accent-purple)";
@@ -314,7 +333,7 @@
     function exportarReporte() {
         let csvContent = "data:text/csv;charset=utf-8,Codigo,Nombre,Tipo,Estado,Hora_Ingreso,Apartado\n";
         
-        const apartados = ['asistencia', 'masterclass', 'festival'];
+        const apartados = ['clase', 'elegidos', 'masterclass', 'festival'];
         
         apartados.forEach(modo => {
             let data = dbCache[modo];
@@ -334,9 +353,10 @@
     }
 
     function resetearBaseDatosModo() {
-        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de TODOS los apartados (Asistencia, Masterclass y Festival)?`)) {
+        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de TODOS los apartados (Clase, Elegidos, Masterclass y Festival)?`)) {
             Promise.all([
-                db.ref('asistencia').remove(),
+                db.ref('clase').remove(),
+                db.ref('elegidos').remove(),
                 db.ref('masterclass').remove(),
                 db.ref('festival').remove()
             ]).then(() => {
