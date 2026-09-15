@@ -91,8 +91,17 @@
         .stats-panel .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; gap: 20px; color: var(--text-main); }
         .stats-panel .stat-label { color: var(--text-muted); }
         
+        .test-mode-toggle {
+            position: fixed; bottom: 20px; left: 20px;
+            background: rgba(15, 15, 15, 0.8); backdrop-filter: blur(10px);
+            border: 1px solid rgba(227, 218, 201, 0.2); border-radius: 8px;
+            padding: 8px 12px; font-size: 0.75rem; z-index: 9999;
+            display: flex; align-items: center; gap: 8px; color: var(--text-muted); cursor: pointer; pointer-events: auto;
+        }
+
         @media (max-width: 768px) {
             .stats-panel { bottom: auto; top: 70px; right: 20px; padding: 15px; font-size: 0.75rem; }
+            .test-mode-toggle { bottom: 10px; left: 10px; padding: 6px 10px; }
         }
 
         .glass-card {
@@ -153,18 +162,23 @@
 
     <div class="connection-indicator" id="connection-indicator">🟠 CONECTANDO...</div>
 
-    <div class="stats-panel">
+    <div class="stats-panel" id="stats-panel-container">
         <h4>ASISTENCIA HOY</h4>
-        <div class="stat-row"><span class="stat-label">Clase:</span> <strong id="stat-clase">0/0 (0%)</strong></div>
-        <div class="stat-row"><span class="stat-label">ELEGIDOS:</span> <strong id="stat-elegidos">0/0 (0%)</strong></div>
-        <div class="stat-row"><span class="stat-label">Masterclass:</span> <strong id="stat-master">0/0 (0%)</strong></div>
-        <div class="stat-row"><span class="stat-label">Festival:</span> <strong id="stat-festival">0/0 (0%)</strong></div>
+        <div class="stat-row" id="row-clase"><span class="stat-label">Clase:</span> <strong id="stat-clase">0/0 (0%)</strong></div>
+        <div class="stat-row" id="row-elegidos" style="display: none;"><span class="stat-label">MAHU FILMS:</span> <strong id="stat-elegidos">0/0 (0%)</strong></div>
+        <div class="stat-row" id="row-master" style="display: none;"><span class="stat-label">DREAMEZ:</span> <strong id="stat-master">0/0 (0%)</strong></div>
+        <div class="stat-row" id="row-festival" style="display: none;"><span class="stat-label">FESTIVAL:</span> <strong id="stat-festival">0/0 (0%)</strong></div>
+    </div>
+
+    <div class="test-mode-toggle">
+        <input type="checkbox" id="test-mode-checkbox">
+        <label for="test-mode-checkbox" style="cursor: pointer;">Modo Prueba (Ignorar Fechas)</label>
     </div>
 
     <div class="glass-card">
         <div class="badge" id="badge-mode">Escáner Universal</div>
         <h2>ELEGIDOS</h2>
-        <div class="subtitle" id="subtitle-mode">Clase (Diario), ELEGIDOS, Masterclass y Festival</div>
+        <div class="subtitle" id="subtitle-mode">Clase, MAHU FILMS, DREAMEZ y FESTIVAL CREATIVO ELEGIDOS</div>
         
         <div id="reader"></div>
         <div id="result" class="result-box"></div>
@@ -221,20 +235,20 @@
         
         if (type === 'success') {
             oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // Tono agudo
+            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
             gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
             oscillator.start();
             gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2);
             oscillator.stop(audioCtx.currentTime + 0.2);
-            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Vibración corta y feliz
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
         } else {
             oscillator.type = 'sawtooth';
-            oscillator.frequency.setValueAtTime(250, audioCtx.currentTime); // Tono grave
+            oscillator.frequency.setValueAtTime(250, audioCtx.currentTime); 
             gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
             oscillator.start();
             gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
             oscillator.stop(audioCtx.currentTime + 0.5);
-            if (navigator.vibrate) navigator.vibrate([300, 100, 300]); // Vibración pesada y de error
+            if (navigator.vibrate) navigator.vibrate([300, 100, 300]); 
         }
     }
 
@@ -293,6 +307,13 @@
     let dbCache = { clase: {}, elegidos: {}, masterclass: {}, festival: {} }; 
     let isScanning = false; 
 
+    // CONFIGURACIÓN DE FECHAS ESTRICTAS
+    const FECHAS_PERMITIDAS = {
+        elegidos: "2026-10-04",
+        masterclass: "2026-10-27",
+        festival: "2026-11-08"
+    };
+
     function inicializarNubeSiEsNecesario() {
         db.ref('clase').once('value', (snapshot) => {
             if (!snapshot.exists()) {
@@ -308,9 +329,9 @@
         });
 
         const eventosUnicoUso = [
-            { id: 'elegidos', prefijo: 'ELEGIDOS-2026-', tipo: 'ENTRADA ELEGIDOS', desc: 'Entrada General ELEGIDOS' },
-            { id: 'masterclass', prefijo: 'DREAMEZ-2026-', tipo: 'MASTERCLASS DREAMEZ', desc: 'Entrada General Masterclass' },
-            { id: 'festival', prefijo: 'FESTIVAL-2026-', tipo: 'FESTIVAL CREATIVO', desc: 'Entrada General Festival' }
+            { id: 'elegidos', prefijo: 'ELEGIDOS-2026-', tipo: 'MASTERCLASS: MAHU FILMS', desc: 'Entrada Mahu Films' },
+            { id: 'masterclass', prefijo: 'DREAMEZ-2026-', tipo: 'MASTERCLASS: DREAMEZ', desc: 'Entrada Dreamez' },
+            { id: 'festival', prefijo: 'FESTIVAL-2026-', tipo: 'FESTIVAL CREATIVO ELEGIDOS', desc: 'Entrada Festival' }
         ];
 
         eventosUnicoUso.forEach(evento => {
@@ -342,8 +363,9 @@
 
     function actualizarEstadisticas() {
         const fechaHoy = new Date().toISOString().split('T')[0];
+        const isTestMode = document.getElementById("test-mode-checkbox").checked;
         let counts = { clase: 0, elegidos: 0, masterclass: 0, festival: 0 };
-        let totals = { clase: 200, elegidos: 200, masterclass: 200, festival: 200 }; // 200 generados por apartado
+        let totals = { clase: 200, elegidos: 200, masterclass: 200, festival: 200 }; 
 
         if (dbCache.clase) {
             Object.values(dbCache.clase).forEach(t => { if (t.asistencias && t.asistencias[fechaHoy]) counts.clase++; });
@@ -354,11 +376,19 @@
             }
         });
 
+        // Mostrar u ocultar apartados en el panel según la fecha programada o el modo prueba
+        document.getElementById("row-elegidos").style.display = (fechaHoy === FECHAS_PERMITIDAS.elegidos || isTestMode) ? "flex" : "none";
+        document.getElementById("row-master").style.display = (fechaHoy === FECHAS_PERMITIDAS.masterclass || isTestMode) ? "flex" : "none";
+        document.getElementById("row-festival").style.display = (fechaHoy === FECHAS_PERMITIDAS.festival || isTestMode) ? "flex" : "none";
+
         document.getElementById("stat-clase").innerText = `${counts.clase}/${totals.clase} (${Math.round(counts.clase/totals.clase*100)}%)`;
         document.getElementById("stat-elegidos").innerText = `${counts.elegidos}/${totals.elegidos} (${Math.round(counts.elegidos/totals.elegidos*100)}%)`;
         document.getElementById("stat-master").innerText = `${counts.masterclass}/${totals.masterclass} (${Math.round(counts.masterclass/totals.masterclass*100)}%)`;
         document.getElementById("stat-festival").innerText = `${counts.festival}/${totals.festival} (${Math.round(counts.festival/totals.festival*100)}%)`;
     }
+
+    // Actualizar vista del panel si se marca/desmarca la casilla de prueba
+    document.getElementById("test-mode-checkbox").addEventListener("change", actualizarEstadisticas);
 
     function actualizarDatalist() {
         const datalist = document.getElementById('lista-asistentes');
@@ -367,8 +397,8 @@
             if (dbCache[sec]) {
                 Object.entries(dbCache[sec]).forEach(([id, data]) => {
                     let option = document.createElement('option');
-                    option.value = id; // El ID que se escanea
-                    option.textContent = data.nombre; // El nombre visible
+                    option.value = id; 
+                    option.textContent = data.nombre; 
                     datalist.appendChild(option);
                 });
             }
@@ -380,7 +410,6 @@
         let query = input.value.trim();
         if(!query) return;
 
-        // Si escribieron el nombre, buscar su código
         let tokenFinal = query.toUpperCase();
         ['clase', 'elegidos', 'masterclass', 'festival'].forEach(sec => {
             if (dbCache[sec]) {
@@ -418,25 +447,41 @@
         else if (token.startsWith("DREAMEZ-2026-")) { modoDetectado = 'masterclass'; colorFondo = "var(--accent-purple)"; }
         else if (token.startsWith("FESTIVAL-2026-")) { modoDetectado = 'festival'; colorFondo = "var(--status-valid)"; }
 
+        const isTestMode = document.getElementById("test-mode-checkbox").checked;
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        
+        // Validación estricta de fecha para eventos únicos (si no es clase y no estamos en modo prueba)
+        if (modoDetectado && modoDetectado !== 'clase' && !isTestMode) {
+            if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
+                playFeedback('error');
+                resultDiv.className = "result-box invalid";
+                resultDiv.style.backgroundColor = "var(--status-invalid)";
+                resultDiv.innerHTML = `❌ ACCESO DENEGADO<br>
+                <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">Este código es válido únicamente el día:</small>
+                <strong style="font-size:1rem;">${FECHAS_PERMITIDAS[modoDetectado]}</strong><br>
+                <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
+                return;
+            }
+        }
+
         if (modoDetectado && dbCache[modoDetectado] && dbCache[modoDetectado][token]) {
             let registro = dbCache[modoDetectado][token];
             const horaActual = new Date().toLocaleTimeString();
-            const fechaHoy = new Date().toISOString().split('T')[0]; 
 
             if (modoDetectado === 'clase') {
                 if (registro.asistencias && registro.asistencias[fechaHoy]) {
-                    mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.asistencias[fechaHoy]} | HOY`, modoDetectado, "var(--status-used)");
+                    mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.asistencias[fechaHoy]} | HOY`, modoDetectado, "var(--status-used)", registro.tipo);
                 } else {
                     db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActual).then(() => {
-                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo);
+                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo, registro.tipo);
                     });
                 }
             } else {
                 if (registro.usado) {
-                    mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.fechaIngreso}`, modoDetectado, "var(--status-used)");
+                    mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.fechaIngreso}`, modoDetectado, "var(--status-used)", registro.tipo);
                 } else {
                     db.ref(`${modoDetectado}/${token}`).update({ usado: true, fechaIngreso: horaActual }).then(() => {
-                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo);
+                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo, registro.tipo);
                     });
                 }
             }
@@ -448,7 +493,7 @@
         }
     }
 
-    function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo) {
+    function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
         div.style.backgroundColor = colorFondo;
         
         if (exito) {
@@ -457,14 +502,14 @@
             div.innerHTML = `✅ ACCESO CONCEDIDO<br>
             <h3 style="margin: 8px 0; color: #fff; font-size:1.4rem; text-transform: uppercase;">${nombre}</h3>
             <small style="color:rgba(255,255,255,0.9); font-size:0.9rem;">Cód: ${token}</small><br>
-            <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${modo.toUpperCase()}</small>`;
+            <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${tipoEvento}</small>`;
         } else {
             playFeedback('error');
             div.className = "result-box used";
             div.innerHTML = `⚠️ YA INGRESÓ ANTERIORMENTE<br>
             <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${nombre}</h3>
             <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
-            <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${modo.toUpperCase()}</small>`;
+            <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${tipoEvento}</small>`;
         }
     }
 
@@ -536,7 +581,7 @@
     }
 
     function resetearBaseDatosModo() {
-        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de TODOS los apartados (Clase, ELEGIDOS, Masterclass y Festival)?`)) {
+        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de TODOS los apartados (Clase, MAHU FILMS, DREAMEZ y FESTIVAL CREATIVO ELEGIDOS)?`)) {
             Promise.all([
                 db.ref('clase').remove(), db.ref('elegidos').remove(), db.ref('masterclass').remove(), db.ref('festival').remove()
             ]).then(() => {
