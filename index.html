@@ -70,6 +70,31 @@
             background: radial-gradient(circle, rgba(227, 218, 201, 0.12) 0%, transparent 60%);
         }
 
+        .connection-indicator {
+            position: fixed; top: 20px; right: 20px;
+            background: rgba(15, 15, 15, 0.8); backdrop-filter: blur(10px);
+            border: 1px solid rgba(227, 218, 201, 0.2); border-radius: 50px;
+            padding: 8px 16px; font-size: 0.85rem; font-weight: bold; z-index: 9999;
+            display: flex; align-items: center; gap: 8px; transition: all 0.3s ease;
+        }
+
+        .stats-panel {
+            position: fixed; bottom: 20px; right: 20px;
+            background: rgba(15, 15, 15, 0.85); backdrop-filter: blur(12px);
+            border: 1px solid rgba(227, 218, 201, 0.2); border-radius: 16px;
+            padding: 20px; font-size: 0.85rem; z-index: 9999;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6); pointer-events: none;
+            min-width: 200px;
+        }
+
+        .stats-panel h4 { color: var(--accent-color); margin-bottom: 12px; font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+        .stats-panel .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; gap: 20px; color: var(--text-main); }
+        .stats-panel .stat-label { color: var(--text-muted); }
+        
+        @media (max-width: 768px) {
+            .stats-panel { bottom: auto; top: 70px; right: 20px; padding: 15px; font-size: 0.75rem; }
+        }
+
         .glass-card {
             width: 100%; max-width: 440px;
             background: var(--card-bg);
@@ -126,10 +151,20 @@
     <div class="noise-overlay"></div>
     <div class="cursor-glow" id="cursor-glow"></div>
 
+    <div class="connection-indicator" id="connection-indicator">🟠 CONECTANDO...</div>
+
+    <div class="stats-panel">
+        <h4>ASISTENCIA HOY</h4>
+        <div class="stat-row"><span class="stat-label">Clase:</span> <strong id="stat-clase">0/0 (0%)</strong></div>
+        <div class="stat-row"><span class="stat-label">ELEGIDOS:</span> <strong id="stat-elegidos">0/0 (0%)</strong></div>
+        <div class="stat-row"><span class="stat-label">Masterclass:</span> <strong id="stat-master">0/0 (0%)</strong></div>
+        <div class="stat-row"><span class="stat-label">Festival:</span> <strong id="stat-festival">0/0 (0%)</strong></div>
+    </div>
+
     <div class="glass-card">
         <div class="badge" id="badge-mode">Escáner Universal</div>
         <h2>ELEGIDOS</h2>
-        <div class="subtitle" id="subtitle-mode">Clase (Diario), Elegidos, Masterclass y Festival</div>
+        <div class="subtitle" id="subtitle-mode">Clase (Diario), ELEGIDOS, Masterclass y Festival</div>
         
         <div id="reader"></div>
         <div id="result" class="result-box"></div>
@@ -140,7 +175,14 @@
         </div>
 
         <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--card-border);">
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">¿Error al escanear? Anular ingreso:</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; text-align: left;">Búsqueda Manual (Fallback):</p>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <input type="text" list="lista-asistentes" id="input-busqueda-manual" placeholder="Escriba nombre o código..." style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 0.9rem;">
+                <datalist id="lista-asistentes"></datalist>
+                <button onclick="validarManual()" style="background: var(--accent-blue); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;">Validar</button>
+            </div>
+
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; text-align: left;">¿Error al escanear? Anular ingreso:</p>
             <div style="display: flex; gap: 8px;">
                 <input type="text" id="input-reset-codigo" placeholder="Ej: CLASE-2026-081" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 0.9rem;">
                 <button onclick="resetearCodigoManual()" style="background: var(--status-invalid); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;">Anular</button>
@@ -164,6 +206,52 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
+    // AUDIO & VIBRATION SYNTHESIZER
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    document.body.addEventListener('click', () => { if(audioCtx.state === 'suspended') audioCtx.resume(); }, {once:true});
+    document.body.addEventListener('touchstart', () => { if(audioCtx.state === 'suspended') audioCtx.resume(); }, {once:true});
+
+    function playFeedback(type) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        if (type === 'success') {
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // Tono agudo
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2);
+            oscillator.stop(audioCtx.currentTime + 0.2);
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Vibración corta y feliz
+        } else {
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(250, audioCtx.currentTime); // Tono grave
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+            oscillator.stop(audioCtx.currentTime + 0.5);
+            if (navigator.vibrate) navigator.vibrate([300, 100, 300]); // Vibración pesada y de error
+        }
+    }
+
+    // INDICADOR ONLINE/OFFLINE
+    const connectedRef = db.ref(".info/connected");
+    connectedRef.on("value", (snap) => {
+        const indicator = document.getElementById("connection-indicator");
+        if (snap.val() === true) {
+            indicator.innerHTML = "🟢 ONLINE";
+            indicator.style.color = "#4ade80";
+            indicator.style.borderColor = "rgba(74, 222, 128, 0.4)";
+        } else {
+            indicator.innerHTML = "🔴 OFFLINE";
+            indicator.style.color = "#f87171";
+            indicator.style.borderColor = "rgba(248, 113, 113, 0.4)";
+        }
+    });
 
     // Lista oficial de los inscritos para los códigos de clase
     const alumnosInscritos = [
@@ -203,10 +291,9 @@
     ];
 
     let dbCache = { clase: {}, elegidos: {}, masterclass: {}, festival: {} }; 
-    let isScanning = false; // Seguro anti-duplicados
+    let isScanning = false; 
 
     function inicializarNubeSiEsNecesario() {
-        // 1. CLASE (Múltiples ingresos por fecha)
         db.ref('clase').once('value', (snapshot) => {
             if (!snapshot.exists()) {
                 let base = {};
@@ -214,15 +301,14 @@
                     let num = String(i).padStart(3, '0');
                     let codigo = `CLASE-2026-${num}`;
                     let nombreAsignado = (i - 1 < alumnosInscritos.length) ? alumnosInscritos[i - 1] : `Entrada General Clase #${i}`;
-                    base[codigo] = { tipo: 'ASISTENCIA CLASE', nombre: nombreAsignado }; // 'asistencias' se creará al escanear
+                    base[codigo] = { tipo: 'ASISTENCIA CLASE', nombre: nombreAsignado }; 
                 }
                 db.ref('clase').set(base);
             }
         });
 
-        // 2, 3 y 4. (Un solo uso)
         const eventosUnicoUso = [
-            { id: 'elegidos', prefijo: 'ELEGIDOS-2026-', tipo: 'ENTRADA ELEGIDOS', desc: 'Entrada General Elegidos' },
+            { id: 'elegidos', prefijo: 'ELEGIDOS-2026-', tipo: 'ENTRADA ELEGIDOS', desc: 'Entrada General ELEGIDOS' },
             { id: 'masterclass', prefijo: 'DREAMEZ-2026-', tipo: 'MASTERCLASS DREAMEZ', desc: 'Entrada General Masterclass' },
             { id: 'festival', prefijo: 'FESTIVAL-2026-', tipo: 'FESTIVAL CREATIVO', desc: 'Entrada General Festival' }
         ];
@@ -245,15 +331,75 @@
     function escucharCambiosEnTiempoReal() {
         ['clase', 'elegidos', 'masterclass', 'festival'].forEach(seccion => {
             db.ref(seccion).on('value', (snapshot) => {
-                if (snapshot.exists()) dbCache[seccion] = snapshot.val();
+                if (snapshot.exists()) {
+                    dbCache[seccion] = snapshot.val();
+                    actualizarEstadisticas();
+                    actualizarDatalist();
+                }
             });
         });
+    }
+
+    function actualizarEstadisticas() {
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        let counts = { clase: 0, elegidos: 0, masterclass: 0, festival: 0 };
+        let totals = { clase: 200, elegidos: 200, masterclass: 200, festival: 200 }; // 200 generados por apartado
+
+        if (dbCache.clase) {
+            Object.values(dbCache.clase).forEach(t => { if (t.asistencias && t.asistencias[fechaHoy]) counts.clase++; });
+        }
+        ['elegidos', 'masterclass', 'festival'].forEach(sec => {
+            if (dbCache[sec]) {
+                Object.values(dbCache[sec]).forEach(t => { if (t.usado) counts[sec]++; });
+            }
+        });
+
+        document.getElementById("stat-clase").innerText = `${counts.clase}/${totals.clase} (${Math.round(counts.clase/totals.clase*100)}%)`;
+        document.getElementById("stat-elegidos").innerText = `${counts.elegidos}/${totals.elegidos} (${Math.round(counts.elegidos/totals.elegidos*100)}%)`;
+        document.getElementById("stat-master").innerText = `${counts.masterclass}/${totals.masterclass} (${Math.round(counts.masterclass/totals.masterclass*100)}%)`;
+        document.getElementById("stat-festival").innerText = `${counts.festival}/${totals.festival} (${Math.round(counts.festival/totals.festival*100)}%)`;
+    }
+
+    function actualizarDatalist() {
+        const datalist = document.getElementById('lista-asistentes');
+        datalist.innerHTML = '';
+        ['clase', 'elegidos', 'masterclass', 'festival'].forEach(sec => {
+            if (dbCache[sec]) {
+                Object.entries(dbCache[sec]).forEach(([id, data]) => {
+                    let option = document.createElement('option');
+                    option.value = id; // El ID que se escanea
+                    option.textContent = data.nombre; // El nombre visible
+                    datalist.appendChild(option);
+                });
+            }
+        });
+    }
+
+    function validarManual() {
+        const input = document.getElementById("input-busqueda-manual");
+        let query = input.value.trim();
+        if(!query) return;
+
+        // Si escribieron el nombre, buscar su código
+        let tokenFinal = query.toUpperCase();
+        ['clase', 'elegidos', 'masterclass', 'festival'].forEach(sec => {
+            if (dbCache[sec]) {
+                Object.entries(dbCache[sec]).forEach(([id, data]) => {
+                    if (data.nombre.toLowerCase() === query.toLowerCase() || id === query.toUpperCase()) {
+                        tokenFinal = id;
+                    }
+                });
+            }
+        });
+
+        onScanSuccess(tokenFinal);
+        input.value = '';
     }
 
     let html5QrcodeScanner;
 
     function onScanSuccess(decodedText) {
-        if (isScanning) return; // Si ya está procesando un código, ignora los siguientes mili-segundos
+        if (isScanning) return; 
         isScanning = true;
 
         if (html5QrcodeScanner) {
@@ -275,10 +421,9 @@
         if (modoDetectado && dbCache[modoDetectado] && dbCache[modoDetectado][token]) {
             let registro = dbCache[modoDetectado][token];
             const horaActual = new Date().toLocaleTimeString();
-            const fechaHoy = new Date().toISOString().split('T')[0]; // Genera: YYYY-MM-DD
+            const fechaHoy = new Date().toISOString().split('T')[0]; 
 
             if (modoDetectado === 'clase') {
-                // LOGICA DE ASISTENCIA POR DÍA
                 if (registro.asistencias && registro.asistencias[fechaHoy]) {
                     mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.asistencias[fechaHoy]} | HOY`, modoDetectado, "var(--status-used)");
                 } else {
@@ -287,7 +432,6 @@
                     });
                 }
             } else {
-                // LOGICA DE USO ÚNICO
                 if (registro.usado) {
                     mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.fechaIngreso}`, modoDetectado, "var(--status-used)");
                 } else {
@@ -297,6 +441,7 @@
                 }
             }
         } else {
+            playFeedback('error');
             resultDiv.className = "result-box invalid";
             resultDiv.style.backgroundColor = "var(--status-invalid)";
             resultDiv.innerHTML = `❌ CÓDIGO NO VÁLIDO<br><small style="font-size:0.8rem; font-weight:normal;">${token}</small>`;
@@ -305,13 +450,16 @@
 
     function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo) {
         div.style.backgroundColor = colorFondo;
+        
         if (exito) {
+            playFeedback('success');
             div.className = "result-box valid";
             div.innerHTML = `✅ ACCESO CONCEDIDO<br>
             <h3 style="margin: 8px 0; color: #fff; font-size:1.4rem; text-transform: uppercase;">${nombre}</h3>
             <small style="color:rgba(255,255,255,0.9); font-size:0.9rem;">Cód: ${token}</small><br>
             <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${modo.toUpperCase()}</small>`;
         } else {
+            playFeedback('error');
             div.className = "result-box used";
             div.innerHTML = `⚠️ YA INGRESÓ ANTERIORMENTE<br>
             <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${nombre}</h3>
@@ -388,7 +536,7 @@
     }
 
     function resetearBaseDatosModo() {
-        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de TODOS los apartados (Clase, Elegidos, Masterclass y Festival)?`)) {
+        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de TODOS los apartados (Clase, ELEGIDOS, Masterclass y Festival)?`)) {
             Promise.all([
                 db.ref('clase').remove(), db.ref('elegidos').remove(), db.ref('masterclass').remove(), db.ref('festival').remove()
             ]).then(() => {
