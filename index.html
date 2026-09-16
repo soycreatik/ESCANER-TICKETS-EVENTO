@@ -665,21 +665,36 @@
                 if (!snap.exists()) { mostrarError("Código de estudiante no existe.", token, resultDiv); return; }
                 const registro = snap.val();
 
-                // Validación Unificada: ¿Es día de Evento Especial o de Clase?
+               // Validación Unificada: ¿Es día de Evento Especial o de Clase?
                 if (eventoEspecialDelDia) {
-                    // Validar si tiene acceso (boleto vinculado o pase especial directo al perfil)
-                    if (registro.accesos_especiales && registro.accesos_especiales[eventoEspecialDelDia]) {
-                        if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
-                            mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
-                            return;
-                        } 
-                        
-                        let ticketVinculado = null;
-                        if (registro.boletos) {
-                            for (let [codigoBoleto, evt] of Object.entries(registro.boletos)) {
-                                if (evt === eventoEspecialDelDia) ticketVinculado = codigoBoleto;
-                            }
+                    // 1. Verificamos si YA INGRESÓ al evento
+                    if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
+                        mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
+                        return;
+                    } 
+                    
+                    // 2. Revisamos si tiene un boleto físico vinculado para quemarlo simultáneamente
+                    let ticketVinculado = null;
+                    if (registro.boletos) {
+                        for (let [codigoBoleto, evt] of Object.entries(registro.boletos)) {
+                            if (evt === eventoEspecialDelDia) ticketVinculado = codigoBoleto;
                         }
+                    }
+                    
+                    // 3. Registramos la asistencia al evento SÍ O SÍ (Tenga el boleto vinculado o lo lleve en mano)
+                    const updates = {};
+                    updates[`clase/${token}/asistencias/evento_${eventoEspecialDelDia}`] = horaActualString;
+                    if (ticketVinculado) {
+                        updates[`${eventoEspecialDelDia}/${ticketVinculado}/usado`] = true;
+                        updates[`${eventoEspecialDelDia}/${ticketVinculado}/fechaIngreso`] = horaActualString;
+                    }
+
+                    db.ref().update(updates).then(() => {
+                        let etiquetaAcceso = ticketVinculado ? `VIP VINCULADO - ${eventoEspecialDelDia.toUpperCase()}` : `ACCESO - ${eventoEspecialDelDia.toUpperCase()}`;
+                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", eventoEspecialDelDia, "var(--accent-gold)", etiquetaAcceso);
+                        enviarPingFeed(registro.nombre, token, `Ingreso Evento`);
+                    });
+                }
                         
                         const updates = {};
                         updates[`clase/${token}/asistencias/evento_${eventoEspecialDelDia}`] = horaActualString;
