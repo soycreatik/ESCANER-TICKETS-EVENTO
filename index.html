@@ -542,12 +542,14 @@
         let html = '<div style="overflow-x: auto; max-width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3);">';
         html += '<table style="width: max-content; border-collapse: collapse; background-color: #0a0a0a; color: #ffffff; font-size: 0.85rem; text-align: center;">';
         
-        // Fila de los títulos (Nombre, Total, y Fechas)
+// Fila de los títulos (Nombre, Total, y Fechas)
         html += '<tr style="background-color: #1a1a1a;">';
-        html += '<th style="padding: 12px; position: sticky; left: 0; background: #1a1a1a; z-index: 2; border: 1px solid rgba(255,255,255,0.2); color: var(--accent-gold); text-align: left; text-transform: uppercase;">Nombre del Alumno</th>';
-        html += '<th style="padding: 12px; border: 1px solid rgba(255,255,255,0.2); color: var(--accent-gold);">Tot.</th>';
+        // Redujimos el padding y añadimos max-width para que no coma toda la pantalla en celular
+        html += '<th style="padding: 8px; position: sticky; left: 0; background: #1a1a1a; z-index: 2; border: 1px solid rgba(255,255,255,0.2); color: var(--accent-gold); text-align: left; text-transform: uppercase; min-width: 120px; max-width: 150px;">Alumno</th>';
+        html += '<th style="padding: 8px; border: 1px solid rgba(255,255,255,0.2); color: var(--accent-gold);">Tot.</th>';
         
-        fechasOficiales.forEach(fecha => {
+        fechasOficiales.forEach(fecha => {        
+
             let partes = fecha.split("-");
             let fechaCorta = `${partes[2]}/${partes[1]}`;
             html += `<th style="padding: 10px; border: 1px solid rgba(255,255,255,0.2); color: #ccc; font-weight: normal;">${fechaCorta}</th>`;
@@ -574,12 +576,13 @@
                         }
                     });
 
-                    // Fila individual de cada alumno
+// Fila individual de cada alumno
                     html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                                <td style="padding: 10px 12px; position: sticky; left: 0; background: #111; border: 1px solid rgba(255,255,255,0.1); text-align: left; white-space: nowrap; font-weight: bold; text-transform: capitalize;">${alumno.nombre.toLowerCase()}</td>
-                                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold; color: var(--accent-color);">${totalAsistencias}</td>
+                                <!-- Truncamos el texto con ellipsis si es muy largo para evitar desbordes en móvil -->
+                                <td style="padding: 8px; position: sticky; left: 0; background: #111; border: 1px solid rgba(255,255,255,0.1); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; text-transform: capitalize; max-width: 150px;" title="${alumno.nombre}">${alumno.nombre.toLowerCase()}</td>
+                                <td style="padding: 8px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold; color: var(--accent-color);">${totalAsistencias}</td>
                                 ${celdasFechas}
-                             </tr>`;
+                             </tr>`;                    
                 }
             }
         } else {
@@ -646,6 +649,11 @@
             }
         });
 
+        // Detener escáner temporalmente si se usa manual
+        if (html5QrcodeScanner && isScanning === false) {
+            html5QrcodeScanner.pause(true);
+        }
+        
         onScanSuccess(tokenFinal);
         input.value = '';
     }
@@ -866,11 +874,18 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
         }
     }
 
-    function resetearCodigoManual() {
+function resetearCodigoManual() {
         const inputField = document.getElementById('input-reset-codigo');
         let token = inputField.value.trim().toUpperCase();
         if(!token) return;
 
+        const isTestMode = document.getElementById("test-mode-checkbox").checked;
+        const testDateInput = document.getElementById("test-date-input").value;
+        const opcionesFecha = { timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit', day: '2-digit' };
+        
+        // Determinar qué fecha usar para la anulación
+        const fechaHoy = (isTestMode && testDateInput) ? testDateInput : new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date());
+        
         let modoDetectado = null;
         if (token.startsWith("CLASE-2026-")) modoDetectado = 'clase';
         else if (token.startsWith("ELEGIDOS-2026-")) modoDetectado = 'elegidos';
@@ -878,13 +893,30 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
         else if (token.startsWith("FESTIVAL-2026-")) modoDetectado = 'festival';
 
         if (modoDetectado && dbCache[modoDetectado] && dbCache[modoDetectado][token]) {
+            
             if (modoDetectado === 'clase') {
-                const fechaHoy = new Date().toISOString().split('T')[0];
+                const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
+                const diaSemana = fechaSV.getDay(); 
+                const horaActual = fechaSV.getHours(); 
+                
+                // Si NO estamos en modo prueba, restringir borrados a horas hábiles
+                if (!isTestMode) {
+                    const esDomingoValido = (diaSemana === 0 && horaActual >= 13 && horaActual < 18);
+                    const esMiercolesValido = (diaSemana === 3 && horaActual === 20);
+                    
+                    if (!esDomingoValido && !esMiercolesValido) {
+                        alert("❌ No puedes anular un registro fuera de los horarios de clase permitidos.");
+                        return;
+                    }
+                }
+
+                // Borrar usando la fecha controlada (hoy o modo prueba)
                 db.ref(`clase/${token}/asistencias/${fechaHoy}`).remove().then(() => {
-                    alert(`✅ Se anuló la asistencia de HOY para el código: ${token}`);
+                    alert(`✅ Se anuló la asistencia de la fecha ${fechaHoy} para el código: ${token}`);
                     inputField.value = '';
                 });
             } else {
+                // Eventos especiales (MAHU, DREAMEZ, FESTIVAL)
                 db.ref(`${modoDetectado}/${token}`).update({ usado: false, fechaIngreso: null }).then(() => {
                     alert(`✅ Código restablecido (No Usado): ${token}`);
                     inputField.value = '';
@@ -893,7 +925,7 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
         } else {
             alert("❌ Código no válido o no encontrado en la base de datos.");
         }
-    }
+    }    
 
     function exportarReporte() {
         const selector = document.getElementById('export-filter');
