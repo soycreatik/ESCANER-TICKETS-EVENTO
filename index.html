@@ -630,27 +630,55 @@
     function inicializarEscaner() {
         const config = { 
             fps: 10, 
-            qrbox: { width: 250, height: 250 },
-            videoConstraints: {
-                facingMode: "environment" // FORZAR CÁMARA TRASERA
-            }
+            qrbox: { width: 250, height: 250 }
         };
 
         if(!html5QrcodeScanner) {
             html5QrcodeScanner = new Html5Qrcode("reader");
         }
 
-        html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+        // Obtener todas las cámaras antes de iniciar para evitar el Gran Angular
+        Html5Qrcode.getCameras().then(devices => {
+            if (devices && devices.length) {
+                let camId = devices[0].id;
+                
+                // Filtramos para buscar cámaras traseras
+                let backCams = devices.filter(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('trasera') || c.label.toLowerCase().includes('posterior'));
+                
+                if (backCams.length > 0) {
+                    // Excluir específicamente lentes gran angular, ultra wide o macro
+                    let mainBack = backCams.find(c => !c.label.toLowerCase().includes('ultra') && !c.label.toLowerCase().includes('wide') && !c.label.toLowerCase().includes('angular') && !c.label.toLowerCase().includes('gran') && !c.label.toLowerCase().includes('macro'));
+                    
+                    camId = mainBack ? mainBack.id : backCams[0].id; 
+                } else if (devices.length > 1) {
+                    // Si el navegador no da labels claros, suele ser la última de la lista
+                    camId = devices[devices.length - 1].id;
+                }
+
+                iniciarConCamara(camId, config);
+            } else {
+                iniciarConCamara({ facingMode: "environment" }, config);
+            }
+        }).catch(err => {
+            console.log("Error al listar cámaras: ", err);
+            iniciarConCamara({ facingMode: "environment" }, config);
+        });
+    }
+
+    // Función auxiliar para mantener el código limpio sin repetir promesas
+    function iniciarConCamara(cameraParams, config) {
+        html5QrcodeScanner.start(cameraParams, config, onScanSuccess)
         .then(() => {
-            // Mostrar botón de linterna si la cámara arranca
             document.getElementById('btn-linterna').style.display = 'block';
             document.getElementById('btn-linterna').style.background = 'transparent';
             document.getElementById('btn-linterna').style.color = 'var(--accent-color)';
             scanModeTorchOn = false;
         }).catch(err => {
-            console.log("Error al iniciar cámara: ", err);
-            // Si falla la trasera, intentar sin restricciones (por si es PC)
-            html5QrcodeScanner.start(undefined, config, onScanSuccess).catch(e => console.log(e));
+            console.log("Error al iniciar cámara principal: ", err);
+            // Fallback final si falla la cámara específica
+            if (cameraParams !== undefined && cameraParams.facingMode === undefined) {
+                html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess).catch(e => console.log(e));
+            }
         });
     }
 
