@@ -361,7 +361,7 @@
         elegidos: "ticket MAHU.jpg",
         masterclass: "ticket DREAMEZ.jpg", 
         festival: "ticket FESTIVAL.jpg",
-        clase: "ticket CLASE.jpg"
+        clase: "LOGO CURSO FOTOGRAFIA DIGITAL.png"
     };
 
     function inicializarNubeSiEsNecesario() {
@@ -580,7 +580,7 @@
         }
     }
 
-function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
+    function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
         div.style.backgroundColor = colorFondo;
         
         let imagenTicketHtml = "";
@@ -607,8 +607,7 @@ function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo,
             div.innerHTML = `⚠️ YA INGRESÓ ANTERIORMENTE<br>
             <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${nombre}</h3>
             <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
-            <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${tipoEvento}</small>
-            ${imagenTicketHtml}`;
+            <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${tipoEvento}</small>`;
         }
     }    
 
