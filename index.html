@@ -100,13 +100,15 @@
         .stats-panel .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; gap: 20px; color: var(--text-main); }
         .stats-panel .stat-label { color: var(--text-muted); }
         
-        .test-mode-toggle {
+        ..test-mode-toggle {
             position: fixed; bottom: 20px; left: 20px;
             background: rgba(15, 15, 15, 0.8); backdrop-filter: blur(10px);
             border: 1px solid rgba(227, 218, 201, 0.2); border-radius: 8px;
             padding: 8px 12px; font-size: 0.75rem; z-index: 9999;
-            display: flex; align-items: center; gap: 8px; color: var(--text-muted); cursor: pointer; pointer-events: auto;
+            display: flex; flex-direction: column; align-items: flex-start; gap: 8px; color: var(--text-muted); pointer-events: auto;
         }
+        .test-mode-controls { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        #test-date-input { background: #000; color: var(--text-main); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 4px; display: none; }
 
         .live-feed {
             position: fixed; bottom: 70px; left: 20px;
@@ -209,9 +211,26 @@
     <div class="live-feed" id="live-feed"></div>
 
     <div class="test-mode-toggle">
-        <input type="checkbox" id="test-mode-checkbox">
-        <label for="test-mode-checkbox" style="cursor: pointer;">Modo Prueba (Ignorar Fechas)</label>
+        <div class="test-mode-controls">
+            <input type="checkbox" id="test-mode-checkbox" onchange="toggleDateInput()">
+            <label for="test-mode-checkbox" style="cursor: pointer;">Modo Prueba</label>
+        </div>
+        <input type="date" id="test-date-input" title="Selecciona la fecha a simular">
     </div>
+    <script>
+        function toggleDateInput() {
+            const cb = document.getElementById("test-mode-checkbox");
+            const dateInput = document.getElementById("test-date-input");
+            dateInput.style.display = cb.checked ? "block" : "none";
+            
+            // Si lo activan y no hay fecha, poner la de hoy por defecto
+            if (cb.checked && !dateInput.value) {
+                const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+                const localISOTime = (new Date(Date.now() - tzOffset)).toISOString().split('T')[0];
+                dateInput.value = localISOTime;
+            }
+        }
+    </script>
 
     <div class="glass-card">
             <div class="badge" id="badge-mode">Escáner Universal</div>
@@ -655,18 +674,24 @@
         else if (token.startsWith("FESTIVAL-2026-")) { modoDetectado = 'festival'; colorFondo = "var(--status-valid)"; }
 
 const isTestMode = document.getElementById("test-mode-checkbox").checked;
+        const testDateInput = document.getElementById("test-date-input").value;
         
-        // configuración de fecha y hora exacta 
+        // Configuración de fecha y hora exacta
         const opcionesFecha = { timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit', day: '2-digit' };
-        const fechaHoy = new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date()); 
-const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
+        // Si el Modo Prueba está activo, usamos la fecha seleccionada; si no, usamos la fecha real del sistema
+        const fechaHoy = (isTestMode && testDateInput) ? testDateInput : new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date()); 
+        const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
         const diaSemana = fechaSV.getDay(); 
-        const horaActual = fechaSV.getHours(); // Extraemos la hora actual
+        const horaActual = fechaSV.getHours(); 
         
+        // Las validaciones de horario solo aplican si NO estamos en Modo Prueba
         if (!isTestMode) {
             if (modoDetectado === 'clase') {
-                // Validación estricta: Domingo (0) a la 1 PM (13) o Miércoles (3) a las 8 PM (20)
-                const esDiaValido = (diaSemana === 0 && horaActual === 13) || (diaSemana === 3 && horaActual === 20);
+                // Validación estricta: Domingos (0) de 13:00 a 17:59, o Miércoles (3) de 20:00 a 20:59
+                const esDomingoValido = (diaSemana === 0 && horaActual >= 13 && horaActual < 18);
+                const esMiercolesValido = (diaSemana === 3 && horaActual === 20);
+                const esDiaValido = esDomingoValido || esMiercolesValido;
+                
                 const despuesInauguracion = fechaHoy >= "2026-09-27";
                 
                 if (!esDiaValido || !despuesInauguracion) {
@@ -674,12 +699,14 @@ const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/
                     resultDiv.className = "result-box invalid";
                     resultDiv.style.backgroundColor = "var(--status-invalid)";
                     resultDiv.innerHTML = `❌ ACCESO DENEGADO<br>
-                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">El acceso es solo <strong>Domingos de 1:00 PM a 1:59 PM</strong> y <strong>Miércoles de 8:00 PM a 8:59 PM</strong>.</small><br>        
+                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">El acceso es solo <strong>Domingos de 1:00 PM a 5:59 PM</strong> y <strong>Miércoles de 8:00 PM a 8:59 PM</strong>.</small><br>        
 
                     <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
                     return;
                 }
             } else if (modoDetectado) {
+
+
                 if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
                     playFeedback('error');
                     resultDiv.className = "result-box invalid";
