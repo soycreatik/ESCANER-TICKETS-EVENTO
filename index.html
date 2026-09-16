@@ -649,21 +649,31 @@
             }
         });
 
-        // Detener escáner temporalmente si se usa manual
+        // Detener y ocultar cámara al usar entrada manual para ver el mensaje inmediatamente
         if (html5QrcodeScanner && isScanning === false) {
             html5QrcodeScanner.pause(true);
+            document.getElementById('btn-linterna').style.display = 'none';
         }
+        document.getElementById('reader').style.display = 'none';
+        document.getElementById('result').style.display = 'block';
         
         onScanSuccess(tokenFinal);
         input.value = '';
     }
 
+    let autoResetTimer = null; // Variable global para el temporizador
+
     function onScanSuccess(decodedText) {
         if (isScanning) return; 
         isScanning = true;
 
+        // Limpiar cualquier temporizador anterior por seguridad
+        if (autoResetTimer) {
+            clearTimeout(autoResetTimer);
+            autoResetTimer = null;
+        }
+
         if (html5QrcodeScanner) {
-            // Pausar en lugar de limpiar para mantener la linterna viva si es posible, o limpiar si es necesario
             html5QrcodeScanner.pause(true); 
             document.getElementById('btn-linterna').style.display = 'none';
         }
@@ -733,16 +743,50 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
             let registro = dbCache[modoDetectado][token];
             const horaActual = new Date().toLocaleTimeString();
 
-            if (modoDetectado === 'clase') {
+if (modoDetectado === 'clase') {
                 if (registro.asistencias && registro.asistencias[fechaHoy]) {
                     mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.asistencias[fechaHoy]} | HOY`, modoDetectado, "var(--status-used)", registro.tipo);
                 } else {
+                    // --- SISTEMA DE ALERTA DE AUSENCIAS FRECUENTES ---
+                    // Determinamos cuántas faltas tiene este alumno evaluando las fechas oficiales pasadas
+                    const fechasOficiales = [
+                        "2026-09-27", "2026-09-30", "2026-10-04", "2026-10-07",
+                        "2026-10-11", "2026-10-14", "2026-10-18", "2026-10-21",
+                        "2026-10-25", "2026-10-28", "2026-11-01", "2026-11-04",
+                        "2026-11-08", "2026-11-11", "2026-11-15", "2026-11-18",
+                        "2026-11-22", "2026-11-25", "2026-11-29", "2026-12-02",
+                        "2026-12-06"
+                    ];
+                    
+                    let faltasAcumuladas = 0;
+                    fechasOficiales.forEach(fechaClase => {
+                        if (fechaClase < fechaHoy) { // Evaluamos solo las clases que ya pasaron
+                            if (!registro.asistencias || !registro.asistencias[fechaClase]) {
+                                faltasAcumuladas++;
+                            }
+                        }
+                    });
+
+                    // Construimos la alerta si tiene 2 o más faltas en el historial
+                    let alertaAusenciasHTML = "";
+                    if (faltasAcumuladas >= 2) {
+                        alertaAusenciasHTML = `
+                        <div style="background: rgba(218, 54, 51, 0.2); border: 1px solid rgba(218, 54, 51, 0.5); padding: 8px; border-radius: 8px; margin-top: 10px;">
+                            <span style="font-size:0.9rem; color: #f87171; font-weight: bold;">⚠️ AVISO DEL SISTEMA:</span><br>
+                            <small style="color:rgba(255,255,255,0.85); font-size:0.8rem;">Este alumno acumula <strong>${faltasAcumuladas} faltas</strong> en el historial.</small>
+                        </div>`;
+                    }
+                    // --------------------------------------------------
+
                     db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActual).then(() => {
-                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo, registro.tipo);
+                        // Concatenamos la alerta oculta al HTML de la imagen/tipo que ya se envía
+                        const tipoConAlerta = `${registro.tipo} ${alertaAusenciasHTML}`;
+                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo, tipoConAlerta);
                         enviarPingFeed(registro.nombre, token, registro.tipo);
                     });
                 }
-            } else {
+            } else {            
+
                 if (registro.usado) {
                     mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.fechaIngreso}`, modoDetectado, "var(--status-used)", registro.tipo);
                 } else {
@@ -781,6 +825,12 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
             <small style="color:rgba(255,255,255,0.9); font-size:0.9rem;">Cód: ${token}</small><br>
             <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${tipoEvento}</small>
             ${imagenTicketHtml}`;
+            
+            // Auto-Reset Automático: Solo si fue exitoso, se reinicia a los 3.5 segundos
+            autoResetTimer = setTimeout(() => {
+                reiniciarEscaner();
+            }, 3500);
+
         } else {
             playFeedback('error');
             div.className = "result-box used";
@@ -788,8 +838,9 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
             <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${nombre}</h3>
             <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
             <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${tipoEvento}</small>`;
+            // Si hay error (ya ingresado, etc), NO hay auto-reset. El operador debe ver qué pasa y presionar manual.
         }
-    }    
+    }
 
     function toggleLinterna() {
         if (!html5QrcodeScanner) return;
