@@ -261,22 +261,26 @@
                 <button id="btn-linterna" onclick="toggleLinterna()" style="background: transparent; border: 1px solid var(--accent-color); color: var(--accent-color); padding: 4px 10px; border-radius: 5px; font-size: 0.75rem; cursor: pointer; display: none;">🔦 Encender Linterna</button>
             </div>
 
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; text-align: left;">¿Error al escanear? Anular ingreso manual:</p>
+            <<p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; text-align: left;">¿Error al escanear? Anular ingreso manual:</p>
             <div style="display: flex; gap: 8px;">
                 <input type="text" id="input-reset-codigo" placeholder="Ej: CLASE-2026-081" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 0.9rem;">
                 <button onclick="resetearCodigoManual()" style="background: var(--status-invalid); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;">Anular Ingreso</button>
             </div>
         </div>
+        
+        <!-- BOTONES DE ADMINISTRACIÓN (Mantenidos dentro de la tarjeta principal) -->
+        <div style="text-align: center; margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <button class="pill-btn" id="btn-toggle-asistencia" onclick="toggleAsistencia()" style="background: var(--accent-blue); color: #fff; z-index: 2;">📋 Abrir Control de Asistencia</button>
+            <button class="btn-reset" onclick="resetearBaseDatosModo()">Reiniciar TODA la base de datos general</button>
+        </div>
+    </div> <!-- Cierre de la glass-card principal del validador -->
 
-    <!-- NUEVO: Botón para mostrar/ocultar la pestaña -->
-    <button class="pill-btn" id="btn-toggle-asistencia" onclick="toggleAsistencia()" style="margin-top: 20px; background: var(--accent-blue); color: #fff; z-index: 2;">📋 Abrir Control de Asistencia</button>
-
-    <!-- NUEVO: Panel oculto por defecto (display: none) -->
+    <!-- PANEL DE ASISTENCIA OCULTO -->
     <div class="glass-card" id="panel-asistencia" style="display: none; margin-top: 20px; max-width: 600px; width: 100%;">
         <h3 style="color: var(--accent-color); margin-bottom: 10px; font-size: 1.1rem; text-transform: uppercase;">Horarios y Fechas de Clases</h3>
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; text-align: center;">
-            🕒 <strong>Domingos:</strong> 1:00 PM - 1:59 PM<br>
-            🕒 <strong>Miércoles:</strong> 8:00 PM - 8:59 PM<br>
+            🕒 <strong>Domingos:</strong> 12:00 PM - 4:59 PM<br>
+            🕒 <strong>Miércoles:</strong> 7:45 PM - 8:59 PM<br>
             <em>* El escáner solo aceptará ingresos en estos bloques horarios.</em>
         </p>
 
