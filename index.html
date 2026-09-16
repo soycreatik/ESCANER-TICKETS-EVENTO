@@ -740,23 +740,6 @@
                 "2026-12-06"
             ];
 
-            // Candado 1: La fecha (real o simulada) DEBE ser una clase oficial o un evento
-            if (!fechasOficialesClase.includes(fechaHoy) && !eventoEspecialDelDia) {
-                mostrarError(`FECHA INVÁLIDA<br><span style="font-size:0.85rem; font-weight:normal;">La fecha (${fechaHoy}) no corresponde a ninguna clase o evento oficial.</span>`, token, resultDiv);
-                return;
-            }
-
-            // Candado 2: La hora debe ser correcta (El Modo Prueba SÍ perdona la hora, pero NO el candado 1 de fechas)
-            if (!isTestMode && !eventoEspecialDelDia) {
-                const esDomingoValido = (diaSemana === 0 && horaActualNum >= 12 && horaActualNum < 17);
-                const esMiercolesValido = (diaSemana === 3 && ((horaActualNum === 19 && minutosActuales >= 45) || horaActualNum === 20));
-                
-                if (!(esDomingoValido || esMiercolesValido)) {
-                    mostrarError(`ACCESO DENEGADO (FUERA DE HORARIO)<br><span style="font-size:0.85rem; font-weight:normal;">Clases: Domingos 12PM-4:59PM / Miércoles 7:45PM-8:59PM.</span>`, token, resultDiv);
-                    return;
-                }
-            }
-
             db.ref(`clase/${token}`).once('value').then(snap => {
                 if (!snap.exists()) { mostrarError("Código de estudiante no existe.", token, resultDiv); return; }
                 const registro = snap.val();
@@ -764,42 +747,65 @@
                 // --> SI ES DÍA DE EVENTO ESPECIAL
                 if (eventoEspecialDelDia) {
                     if (registro.accesos_especiales && registro.accesos_especiales[eventoEspecialDelDia]) {
+                        // 1. Verificamos PRIMERO si ya ingresó
                         if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
                             mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
-                        } else {
-                            let ticketVinculado = null;
-                            if (registro.boletos) {
-                                for (let [codigoBoleto, evt] of Object.entries(registro.boletos)) {
-                                    if (evt === eventoEspecialDelDia) ticketVinculado = codigoBoleto;
-                                }
+                            return;
+                        } 
+                        
+                        let ticketVinculado = null;
+                        if (registro.boletos) {
+                            for (let [codigoBoleto, evt] of Object.entries(registro.boletos)) {
+                                if (evt === eventoEspecialDelDia) ticketVinculado = codigoBoleto;
                             }
-                            
-                            const updates = {};
-                            updates[`clase/${token}/asistencias/evento_${eventoEspecialDelDia}`] = horaActualString;
-                            if (ticketVinculado) {
-                                updates[`${eventoEspecialDelDia}/${ticketVinculado}/usado`] = true;
-                                updates[`${eventoEspecialDelDia}/${ticketVinculado}/fechaIngreso`] = horaActualString;
-                            }
-
-                            db.ref().update(updates).then(() => {
-                                mostrarPantalla(resultDiv, true, registro.nombre, token, "", eventoEspecialDelDia, "var(--accent-gold)", `VIP - ${eventoEspecialDelDia.toUpperCase()}`);
-                                enviarPingFeed(registro.nombre, token, `Ingreso Vinculado`);
-                            });
                         }
+                        
+                        const updates = {};
+                        updates[`clase/${token}/asistencias/evento_${eventoEspecialDelDia}`] = horaActualString;
+                        if (ticketVinculado) {
+                            updates[`${eventoEspecialDelDia}/${ticketVinculado}/usado`] = true;
+                            updates[`${eventoEspecialDelDia}/${ticketVinculado}/fechaIngreso`] = horaActualString;
+                        }
+
+                        db.ref().update(updates).then(() => {
+                            mostrarPantalla(resultDiv, true, registro.nombre, token, "", eventoEspecialDelDia, "var(--accent-gold)", `VIP - ${eventoEspecialDelDia.toUpperCase()}`);
+                            enviarPingFeed(registro.nombre, token, `Ingreso Vinculado`);
+                        });
+                        
                     } else {
                         mostrarError(`ESTUDIANTE SIN BOLETO VINCULADO PARA EL EVENTO DE HOY`, token, resultDiv);
                     }
                 } 
                 // --> SI ES CLASE NORMAL
                 else {
+                    // 1. Verificamos PRIMERO si ya asistió en la fecha ingresada/actual
                     if (registro.asistencias && registro.asistencias[fechaHoy]) {
                         mostrarPantalla(resultDiv, false, registro.nombre, token, `Llegada: ${registro.asistencias[fechaHoy]}`, 'clase', "var(--status-used)", registro.tipo);
-                    } else {
-                        db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActualString).then(() => {
-                            mostrarPantalla(resultDiv, true, registro.nombre, token, "", 'clase', colorFondo, registro.tipo);
-                            enviarPingFeed(registro.nombre, token, registro.tipo);
-                        });
+                        return;
                     }
+                    
+                    // 2. Si no ha asistido, verificamos si la fecha es oficial
+                    if (!fechasOficialesClase.includes(fechaHoy)) {
+                        mostrarError(`NO HAY CLASES ESTA FECHA<br><span style="font-size:0.85rem; font-weight:normal;">La fecha validada (${fechaHoy}) no corresponde a una clase oficial programada.</span>`, token, resultDiv);
+                        return;
+                    }
+
+                    // 3. Verificamos la HORA estricta (El Modo Prueba ignora este candado de horas)
+                    if (!isTestMode) {
+                        const esDomingoValido = (diaSemana === 0 && horaActualNum >= 12 && horaActualNum < 17);
+                        const esMiercolesValido = (diaSemana === 3 && ((horaActualNum === 19 && minutosActuales >= 45) || horaActualNum === 20));
+                        
+                        if (!(esDomingoValido || esMiercolesValido)) {
+                            mostrarError(`CLASE CERRADA (FUERA DE HORARIO)<br><span style="font-size:0.85rem; font-weight:normal;">Clases: Domingos 12PM-4:59PM / Miércoles 7:45PM-8:59PM.</span>`, token, resultDiv);
+                            return;
+                        }
+                    }
+
+                    // 4. Registrar asistencia
+                    db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActualString).then(() => {
+                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", 'clase', colorFondo, registro.tipo);
+                        enviarPingFeed(registro.nombre, token, registro.tipo);
+                    });
                 }
             });
         } 
@@ -807,41 +813,46 @@
         // ESCENARIO 2: ESCANEO DIRECTO DEL TICKET FÍSICO / EVENTO
         // =======================================================
         else if (modoDetectado) {
-            // Candado absoluto de fecha para eventos (incluye Modo Prueba)
-            if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
-                mostrarError(`FECHA INCORRECTA PARA ESTE EVENTO<br><span style="font-size:0.85rem; font-weight:normal;">Exclusivo para la fecha: ${FECHAS_PERMITIDAS[modoDetectado]}.<br>Detectada/Simulada: ${fechaHoy}</span>`, token, resultDiv); 
-                return;
-            }
-
             db.ref(`${modoDetectado}/${token}`).once('value').then(snap => {
                 if (!snap.exists()) { mostrarError("BOLETO NO EXISTE", token, resultDiv); return; }
                 const registroBoleto = snap.val();
 
+                // 1. Verificamos PRIMERO si ya ingresó (No importa la fecha)
                 if (registroBoleto.usado) {
                     let nombreMostrar = registroBoleto.vinculado_a ? "Ticket Vinculado Usado" : registroBoleto.nombre;
                     mostrarPantalla(resultDiv, false, nombreMostrar, token, `Ingreso: ${registroBoleto.fechaIngreso}`, modoDetectado, "var(--status-used)", registroBoleto.tipo);
-                } else {
-                    const updates = {};
-                    updates[`${modoDetectado}/${token}/usado`] = true;
-                    updates[`${modoDetectado}/${token}/fechaIngreso`] = horaActualString;
-                    
-                    if (registroBoleto.vinculado_a) {
-                        updates[`clase/${registroBoleto.vinculado_a}/asistencias/evento_${modoDetectado}`] = horaActualString;
-                    }
-
-                    db.ref().update(updates).then(() => {
-                        if (registroBoleto.vinculado_a) {
-                            db.ref(`clase/${registroBoleto.vinculado_a}/nombre`).once('value').then(snapNombre => {
-                                const nombreEst = snapNombre.val() || "Estudiante";
-                                mostrarPantalla(resultDiv, true, nombreEst, token, "", modoDetectado, colorFondo, `TICKET VINCULADO - ${modoDetectado.toUpperCase()}`);
-                                enviarPingFeed(nombreEst, token, `Ingreso Vinculado`);
-                            });
-                        } else {
-                            mostrarPantalla(resultDiv, true, registroBoleto.nombre, token, "", modoDetectado, colorFondo, registroBoleto.tipo);
-                            enviarPingFeed(registroBoleto.nombre, token, registroBoleto.tipo);
-                        }
-                    });
+                    return;
                 }
+                
+                // 2. Si no ha ingresado, verificamos que sea la fecha correcta del evento
+                if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
+                    const isPast = fechaHoy > FECHAS_PERMITIDAS[modoDetectado];
+                    const mensajeTiempo = isPast ? "El evento ya pasó. Boleto caducado." : "Aún no es el día del evento.";
+                    mostrarError(`${mensajeTiempo}<br><span style="font-size:0.85rem; font-weight:normal;">Día oficial: ${FECHAS_PERMITIDAS[modoDetectado]}</span>`, token, resultDiv); 
+                    return;
+                }
+
+                // 3. Registrar acceso cruzado
+                const updates = {};
+                updates[`${modoDetectado}/${token}/usado`] = true;
+                updates[`${modoDetectado}/${token}/fechaIngreso`] = horaActualString;
+                
+                if (registroBoleto.vinculado_a) {
+                    updates[`clase/${registroBoleto.vinculado_a}/asistencias/evento_${modoDetectado}`] = horaActualString;
+                }
+
+                db.ref().update(updates).then(() => {
+                    if (registroBoleto.vinculado_a) {
+                        db.ref(`clase/${registroBoleto.vinculado_a}/nombre`).once('value').then(snapNombre => {
+                            const nombreEst = snapNombre.val() || "Estudiante";
+                            mostrarPantalla(resultDiv, true, nombreEst, token, "", modoDetectado, colorFondo, `TICKET VINCULADO - ${modoDetectado.toUpperCase()}`);
+                            enviarPingFeed(nombreEst, token, `Ingreso Vinculado`);
+                        });
+                    } else {
+                        mostrarPantalla(resultDiv, true, registroBoleto.nombre, token, "", modoDetectado, colorFondo, registroBoleto.tipo);
+                        enviarPingFeed(registroBoleto.nombre, token, registroBoleto.tipo);
+                    }
+                });
             });
         }
         
