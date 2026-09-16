@@ -99,9 +99,30 @@
             display: flex; align-items: center; gap: 8px; color: var(--text-muted); cursor: pointer; pointer-events: auto;
         }
 
+        .live-feed {
+            position: fixed; bottom: 70px; left: 20px;
+            display: flex; flex-direction: column-reverse; gap: 8px;
+            z-index: 9999; pointer-events: none;
+            max-height: 300px; overflow: hidden;
+        }
+
+        .feed-item {
+            background: rgba(15, 15, 15, 0.9); border: 1px solid rgba(227, 218, 201, 0.3);
+            border-left: 4px solid var(--accent-color); border-radius: 8px;
+            padding: 10px 15px; font-size: 0.85rem; backdrop-filter: blur(5px);
+            animation: slideIn 0.3s ease-out forwards, fadeOut 0.5s ease-in 4s forwards;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); color: #fff;
+        }
+        .feed-item strong { display: block; font-size: 0.95rem; color: var(--accent-color); margin-bottom: 2px; }
+
+        @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+
         @media (max-width: 768px) {
             .stats-panel { bottom: auto; top: 70px; right: 20px; padding: 15px; font-size: 0.75rem; }
             .test-mode-toggle { bottom: 10px; left: 10px; padding: 6px 10px; }
+            .live-feed { bottom: 50px; left: 10px; }
+            .feed-item { padding: 8px 12px; font-size: 0.75rem; }
         }
 
         .glass-card {
@@ -143,8 +164,14 @@
         }
         .pill-btn:hover { background: #E3DAC9; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(227, 218, 201, 0.3); }
 
-        .btn-outline { background: transparent; border: 1px solid rgba(227, 218, 201, 0.3); color: var(--text-main); }
-        .btn-outline:hover { background: rgba(227, 218, 201, 0.08); border-color: rgba(227, 218, 201, 0.6); }
+        .select-btn {
+            background: transparent; border: 1px solid rgba(227, 218, 201, 0.3); color: var(--text-main);
+            padding: 12px 24px; border-radius: 50px; font-weight: 700; cursor: pointer;
+            transition: all 0.3s ease; font-size: 0.9rem; text-align: center; appearance: none;
+            outline: none; font-family: 'Inter', sans-serif;
+        }
+        .select-btn:hover { background: rgba(227, 218, 201, 0.08); border-color: rgba(227, 218, 201, 0.6); }
+        .select-btn option { background: #000; color: #fff; }
 
         .btn-reset { background: transparent; color: var(--text-muted); border: none; font-size: 0.75rem; margin-top: 15px; cursor: pointer; }
         .btn-reset:hover { color: var(--text-main); }
@@ -170,6 +197,8 @@
         <div class="stat-row" id="row-festival" style="display: none;"><span class="stat-label">FESTIVAL:</span> <strong id="stat-festival">0/0 (0%)</strong></div>
     </div>
 
+    <div class="live-feed" id="live-feed"></div>
+
     <div class="test-mode-toggle">
         <input type="checkbox" id="test-mode-checkbox">
         <label for="test-mode-checkbox" style="cursor: pointer;">Modo Prueba (Ignorar Fechas)</label>
@@ -185,11 +214,21 @@
 
         <div class="btn-group">
             <button class="pill-btn" onclick="reiniciarEscaner()">Escanear Siguiente Ticket</button>
-            <button class="pill-btn btn-outline" onclick="exportarReporte()">Descargar Reporte CSV General ↗</button>
+            <select class="select-btn" id="export-filter" onchange="exportarReporte()">
+                <option value="" disabled selected>⬇️ Descargar Reporte CSV...</option>
+                <option value="todos">Reporte General (Todos)</option>
+                <option value="clase">Solo CLASE</option>
+                <option value="elegidos">Solo MAHU FILMS</option>
+                <option value="masterclass">Solo DREAMEZ</option>
+                <option value="festival">Solo FESTIVAL</option>
+            </select>
         </div>
 
         <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--card-border);">
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; text-align: left;">Búsqueda Manual (Fallback):</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Búsqueda Manual (Fallback):</p>
+                <button id="btn-linterna" onclick="toggleLinterna()" style="background: transparent; border: 1px solid var(--accent-color); color: var(--accent-color); padding: 4px 10px; border-radius: 5px; font-size: 0.75rem; cursor: pointer; display: none;">🔦 Linterna</button>
+            </div>
             <div style="display: flex; gap: 8px; margin-bottom: 12px;">
                 <input type="text" list="lista-asistentes" id="input-busqueda-manual" placeholder="Escriba nombre o código..." style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 0.9rem;">
                 <datalist id="lista-asistentes"></datalist>
@@ -306,6 +345,9 @@
 
     let dbCache = { clase: {}, elegidos: {}, masterclass: {}, festival: {} }; 
     let isScanning = false; 
+    let html5QrcodeScanner;
+    let scanModeTorchOn = false;
+    const scannerId = "scanner_" + Math.floor(Math.random() * 100000); // ID único para el feed en vivo
 
     // CONFIGURACIÓN DE FECHAS ESTRICTAS
     const FECHAS_PERMITIDAS = {
@@ -359,6 +401,43 @@
                 }
             });
         });
+
+        // Escuchar los "pings" de escaneos para el feed en vivo
+        db.ref('live_feed').on('child_added', (snapshot) => {
+            const data = snapshot.val();
+            // Evitar mostrar el propio escaneo si ya vimos la pantalla grande
+            if (data.scannerId !== scannerId) {
+                mostrarFeedNotificacion(data.nombre, data.codigo, data.tipoEvento);
+            }
+            // Limpiar la base para no llenarla (se borra a los 5 min, pero por si acaso)
+            if (Date.now() - data.timestamp > 300000) snapshot.ref.remove(); 
+        });
+    }
+
+    function mostrarFeedNotificacion(nombre, codigo, tipo) {
+        const feedContainer = document.getElementById("live-feed");
+        const item = document.createElement("div");
+        item.className = "feed-item";
+        item.innerHTML = `<strong>${nombre}</strong> <span style="color:#aaa;">${codigo}</span><br><small>${tipo}</small>`;
+        
+        feedContainer.prepend(item);
+        
+        // Quitar del DOM después de 4.5 segundos
+        setTimeout(() => {
+            if (item.parentNode) item.parentNode.removeChild(item);
+        }, 4500);
+    }
+
+    function enviarPingFeed(nombre, codigo, tipo) {
+        db.ref('live_feed').push({
+            nombre: nombre,
+            codigo: codigo,
+            tipoEvento: tipo,
+            scannerId: scannerId,
+            timestamp: Date.now()
+        });
+        // Mostrar localmente también en pequeño
+        mostrarFeedNotificacion(nombre, codigo, tipo);
     }
 
     function actualizarEstadisticas() {
@@ -376,7 +455,6 @@
             }
         });
 
-        // Mostrar u ocultar apartados en el panel según la fecha programada o el modo prueba
         document.getElementById("row-elegidos").style.display = (fechaHoy === FECHAS_PERMITIDAS.elegidos || isTestMode) ? "flex" : "none";
         document.getElementById("row-master").style.display = (fechaHoy === FECHAS_PERMITIDAS.masterclass || isTestMode) ? "flex" : "none";
         document.getElementById("row-festival").style.display = (fechaHoy === FECHAS_PERMITIDAS.festival || isTestMode) ? "flex" : "none";
@@ -387,7 +465,6 @@
         document.getElementById("stat-festival").innerText = `${counts.festival}/${totals.festival} (${Math.round(counts.festival/totals.festival*100)}%)`;
     }
 
-    // Actualizar vista del panel si se marca/desmarca la casilla de prueba
     document.getElementById("test-mode-checkbox").addEventListener("change", actualizarEstadisticas);
 
     function actualizarDatalist() {
@@ -425,18 +502,19 @@
         input.value = '';
     }
 
-    let html5QrcodeScanner;
-
     function onScanSuccess(decodedText) {
         if (isScanning) return; 
         isScanning = true;
 
         if (html5QrcodeScanner) {
-            html5QrcodeScanner.clear().catch(e => console.log(e));
+            // Pausar en lugar de limpiar para mantener la linterna viva si es posible, o limpiar si es necesario
+            html5QrcodeScanner.pause(true); 
+            document.getElementById('btn-linterna').style.display = 'none';
         }
 
         const resultDiv = document.getElementById('result');
         resultDiv.style.display = 'block';
+        document.getElementById('reader').style.display = 'none'; // Ocultar cámara al validar
 
         const token = decodedText.trim();
         let modoDetectado = null;
@@ -450,7 +528,6 @@
         const isTestMode = document.getElementById("test-mode-checkbox").checked;
         const fechaHoy = new Date().toISOString().split('T')[0];
         
-        // Validación estricta de fecha para eventos únicos (si no es clase y no estamos en modo prueba)
         if (modoDetectado && modoDetectado !== 'clase' && !isTestMode) {
             if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
                 playFeedback('error');
@@ -474,6 +551,7 @@
                 } else {
                     db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActual).then(() => {
                         mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo, registro.tipo);
+                        enviarPingFeed(registro.nombre, token, registro.tipo);
                     });
                 }
             } else {
@@ -482,6 +560,7 @@
                 } else {
                     db.ref(`${modoDetectado}/${token}`).update({ usado: true, fechaIngreso: horaActual }).then(() => {
                         mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo, registro.tipo);
+                        enviarPingFeed(registro.nombre, token, registro.tipo);
                     });
                 }
             }
@@ -510,6 +589,62 @@
             <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${nombre}</h3>
             <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
             <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${tipoEvento}</small>`;
+        }
+    }
+
+    function toggleLinterna() {
+        if (!html5QrcodeScanner) return;
+        scanModeTorchOn = !scanModeTorchOn;
+        const btn = document.getElementById('btn-linterna');
+        
+        html5QrcodeScanner.applyVideoConstraints({
+            advanced: [{ torch: scanModeTorchOn }]
+        }).then(() => {
+            btn.style.background = scanModeTorchOn ? "var(--accent-color)" : "transparent";
+            btn.style.color = scanModeTorchOn ? "#000" : "var(--accent-color)";
+        }).catch(err => {
+            alert("Tu dispositivo o navegador no soporta la función de linterna.");
+            scanModeTorchOn = false;
+        });
+    }
+
+    function inicializarEscaner() {
+        const config = { 
+            fps: 10, 
+            qrbox: { width: 250, height: 250 },
+            videoConstraints: {
+                facingMode: "environment" // FORZAR CÁMARA TRASERA
+            }
+        };
+
+        if(!html5QrcodeScanner) {
+            html5QrcodeScanner = new Html5Qrcode("reader");
+        }
+
+        html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+        .then(() => {
+            // Mostrar botón de linterna si la cámara arranca
+            document.getElementById('btn-linterna').style.display = 'block';
+            document.getElementById('btn-linterna').style.background = 'transparent';
+            document.getElementById('btn-linterna').style.color = 'var(--accent-color)';
+            scanModeTorchOn = false;
+        }).catch(err => {
+            console.log("Error al iniciar cámara: ", err);
+            // Si falla la trasera, intentar sin restricciones (por si es PC)
+            html5QrcodeScanner.start(undefined, config, onScanSuccess).catch(e => console.log(e));
+        });
+    }
+
+    function reiniciarEscaner() {
+        isScanning = false;
+        document.getElementById('result').style.display = 'none';
+        document.getElementById('reader').style.display = 'block';
+        
+        if (html5QrcodeScanner && html5QrcodeScanner.getState() === 3 /* PAUSED */) {
+            html5QrcodeScanner.resume();
+            document.getElementById('btn-linterna').style.display = 'block';
+        } else {
+            inicializarEscaner();
         }
     }
 
@@ -542,22 +677,17 @@
         }
     }
 
-    function inicializarEscaner() {
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 220, height: 220 } }, false);
-        html5QrcodeScanner.render(onScanSuccess);
-    }
-
-    function reiniciarEscaner() {
-        isScanning = false;
-        document.getElementById('result').style.display = 'none';
-        inicializarEscaner();
-    }
-
     function exportarReporte() {
+        const selector = document.getElementById('export-filter');
+        const filtro = selector.value;
+        if (!filtro) return;
+
         let csvContent = "data:text/csv;charset=utf-8,Codigo,Nombre,Tipo,Estado,Hora_Ingreso,Apartado\n";
         const fechaHoy = new Date().toISOString().split('T')[0];
         
-        ['clase', 'elegidos', 'masterclass', 'festival'].forEach(modo => {
+        const modosARevisar = filtro === 'todos' ? ['clase', 'elegidos', 'masterclass', 'festival'] : [filtro];
+
+        modosARevisar.forEach(modo => {
             let data = dbCache[modo];
             for (let id in data) {
                 let t = data[id];
@@ -574,14 +704,16 @@
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `reporte_general_eventos_tiempo_real.csv`);
+        link.setAttribute("download", `reporte_${filtro}_${fechaHoy}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        
+        selector.value = ""; // Resetear selector
     }
 
     function resetearBaseDatosModo() {
-        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de TODOS los apartados (Clase, MAHU FILMS, DREAMEZ y FESTIVAL CREATIVO ELEGIDOS)?`)) {
+        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de TODOS los apartados?`)) {
             Promise.all([
                 db.ref('clase').remove(), db.ref('elegidos').remove(), db.ref('masterclass').remove(), db.ref('festival').remove()
             ]).then(() => {
