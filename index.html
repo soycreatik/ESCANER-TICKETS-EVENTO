@@ -543,21 +543,41 @@
         else if (token.startsWith("DREAMEZ-2026-")) { modoDetectado = 'masterclass'; colorFondo = "var(--accent-purple)"; }
         else if (token.startsWith("FESTIVAL-2026-")) { modoDetectado = 'festival'; colorFondo = "var(--status-valid)"; }
 
-        const isTestMode = document.getElementById("test-mode-checkbox").checked;
-        const fechaHoy = new Date().toISOString().split('T')[0];
+const isTestMode = document.getElementById("test-mode-checkbox").checked;
         
-        if (modoDetectado && modoDetectado !== 'clase' && !isTestMode) {
-            if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
-                playFeedback('error');
-                resultDiv.className = "result-box invalid";
-                resultDiv.style.backgroundColor = "var(--status-invalid)";
-                resultDiv.innerHTML = `❌ ACCESO DENEGADO<br>
-                <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">Este código es válido únicamente el día:</small>
-                <strong style="font-size:1rem;">${FECHAS_PERMITIDAS[modoDetectado]}</strong><br>
-                <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
-                return;
+        // configuración de fecha y hora exacta 
+        const opcionesFecha = { timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit', day: '2-digit' };
+        const fechaHoy = new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date()); 
+        const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
+        const diaSemana = fechaSV.getDay(); 
+        
+        if (!isTestMode) {
+            if (modoDetectado === 'clase') {
+                const esDiaValido = (diaSemana === 0 || diaSemana === 3);
+                const despuesInauguracion = fechaHoy >= "2026-09-27";
+                
+                if (!esDiaValido || !despuesInauguracion) {
+                    playFeedback('error');
+                    resultDiv.className = "result-box invalid";
+                    resultDiv.style.backgroundColor = "var(--status-invalid)";
+                    resultDiv.innerHTML = `❌ ACCESO DENEGADO<br>
+                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">las clases inician el 27 de sept. y el acceso es solo <strong>miércoles y domingos</strong>.</small><br>
+                    <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
+                    return;
+                }
+            } else if (modoDetectado) {
+                if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
+                    playFeedback('error');
+                    resultDiv.className = "result-box invalid";
+                    resultDiv.style.backgroundColor = "var(--status-invalid)";
+                    resultDiv.innerHTML = `❌ ACCESO DENEGADO<br>
+                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">este código es válido únicamente el día:</small>
+                    <strong style="font-size:1rem;">${FECHAS_PERMITIDAS[modoDetectado]}</strong><br>
+                    <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
+                    return;
+                }
             }
-        }
+        }        
 
         if (modoDetectado && dbCache[modoDetectado] && dbCache[modoDetectado][token]) {
             let registro = dbCache[modoDetectado][token];
