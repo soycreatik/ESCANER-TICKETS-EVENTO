@@ -823,9 +823,10 @@
             <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${tipoEvento}</small>
             ${imagenTicketHtml}`;
             
+            // Auto-Reset Automático: Solo si fue exitoso, se reinicia a los 2.5 segundos
             autoResetTimer = setTimeout(() => {
                 reiniciarEscaner();
-            }, 3500);
+            }, 2500);
 
         } else {
             playFeedback('error');
@@ -835,9 +836,10 @@
             <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
             <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${tipoEvento}</small>`;
             
+            // Auto-Reset Automático también para tickets ya usados (Mantiene el flujo de fila ágil)
             autoResetTimer = setTimeout(() => {
                 reiniciarEscaner();
-            }, 3500);
+            }, 2500);
         }
     }
 
