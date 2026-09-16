@@ -211,10 +211,10 @@
             </div>
         </div>
         
-        <!-- BOTONES DE ADMINISTRACIÓN (Mantenidos dentro de la tarjeta principal) -->
+        
+<!-- BOTONES DE ADMINISTRACIÓN (Mantenidos dentro de la tarjeta principal) -->
         <div style="text-align: center; margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
             <button class="pill-btn" id="btn-toggle-asistencia" onclick="toggleAsistencia()" style="background: var(--accent-blue); color: #fff; z-index: 2;">📋 Abrir Control de Asistencia</button>
-            <button class="btn-reset" onclick="resetearBaseDatosModo()">Reiniciar TODA la base de datos general</button>
         </div>
     </div> <!-- Cierre de la glass-card principal del validador -->
 
@@ -949,17 +949,7 @@
         selector.value = ""; 
     }
 
-    function resetearBaseDatosModo() {
-        if (confirm(`¿Seguro que quieres borrar todos los registros en la nube de TODOS los apartados?`)) {
-            Promise.all([
-                db.ref('clase').remove(), db.ref('elegidos').remove(), db.ref('masterclass').remove(), db.ref('festival').remove()
-            ]).then(() => {
-                inicializarNubeSiEsNecesario();
-                alert("Base de datos reiniciada correctamente para todos los apartados.");
-                document.getElementById('result').style.display = 'none';
-            });
-        }
-    }
+    
 
     window.onload = () => {
         inicializarNubeSiEsNecesario();
