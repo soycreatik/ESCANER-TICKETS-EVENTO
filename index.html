@@ -683,11 +683,7 @@
         if (isScanning) return; 
         isScanning = true;
 
-        // Limpiar cualquier temporizador anterior por seguridad
-        if (autoResetTimer) {
-            clearTimeout(autoResetTimer);
-            autoResetTimer = null;
-        }
+        if (autoResetTimer) { clearTimeout(autoResetTimer); autoResetTimer = null; }
 
         if (html5QrcodeScanner) {
             html5QrcodeScanner.pause(true); 
@@ -696,7 +692,7 @@
 
         const resultDiv = document.getElementById('result');
         resultDiv.style.display = 'block';
-        document.getElementById('reader').style.display = 'none'; // Ocultar cámara al validar
+        document.getElementById('reader').style.display = 'none'; 
 
         const token = decodedText.trim();
         let modoDetectado = null;
@@ -707,121 +703,133 @@
         else if (token.startsWith("DREAMEZ-2026-")) { modoDetectado = 'masterclass'; colorFondo = "var(--accent-purple)"; }
         else if (token.startsWith("FESTIVAL-2026-")) { modoDetectado = 'festival'; colorFondo = "var(--status-valid)"; }
 
-const isTestMode = document.getElementById("test-mode-checkbox").checked;
+        const isTestMode = document.getElementById("test-mode-checkbox").checked;
         const testDateInput = document.getElementById("test-date-input").value;
-        
-        // Configuración de fecha y hora exacta
         const opcionesFecha = { timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit', day: '2-digit' };
-        // Si el Modo Prueba está activo, usamos la fecha seleccionada; si no, usamos la fecha real del sistema
         const fechaHoy = (isTestMode && testDateInput) ? testDateInput : new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date()); 
         
-const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
+        const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
         const diaSemana = fechaSV.getDay(); 
-        const horaActual = fechaSV.getHours(); 
+        const horaActualNum = fechaSV.getHours(); 
         const minutosActuales = fechaSV.getMinutes();
-        
+        const horaActualString = new Date().toLocaleTimeString();
+
+        // Determinar si hoy hay un evento especial
+        let eventoEspecialDelDia = null;
+        Object.entries(FECHAS_PERMITIDAS).forEach(([eventoId, fecha]) => {
+            if (fecha === fechaHoy) eventoEspecialDelDia = eventoId;
+        });
+
+        // =======================================================
+        // ESCENARIO 1: ESCANEO DE QR GENERAL DE CLASE
+        // =======================================================
         if (modoDetectado === 'clase') {
-            // Para CLASES: El horario estricto aplica solo si NO estamos en modo prueba
-            if (!isTestMode) {
-                // Domingos (0) de 12:00 a 16:59 (12 PM a 4:59 PM), o Miércoles (3) de 19:45 a 20:59 (7:45 PM a 8:59 PM)
-                const esDomingoValido = (diaSemana === 0 && horaActual >= 12 && horaActual < 17);
-                const esMiercolesValido = (diaSemana === 3 && ((horaActual === 19 && minutosActuales >= 45) || horaActual === 20));
-                const esDiaValido = esDomingoValido || esMiercolesValido;
+            if (!isTestMode && !eventoEspecialDelDia) {
+                const esDomingoValido = (diaSemana === 0 && horaActualNum >= 12 && horaActualNum < 17);
+                const esMiercolesValido = (diaSemana === 3 && ((horaActualNum === 19 && minutosActuales >= 45) || horaActualNum === 20));
                 const despuesInauguracion = fechaHoy >= "2026-09-27";
-                
-                if (!esDiaValido || !despuesInauguracion) {
-                    playFeedback('error');
-                    resultDiv.className = "result-box invalid";
-                    resultDiv.style.backgroundColor = "var(--status-invalid)";
-                    resultDiv.innerHTML = `❌ ACCESO DENEGADO (FUERA DE HORARIO)<br>
-                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">El acceso es estrictamente <strong>Domingos de 12:00 PM a 4:59 PM</strong> y <strong>Miércoles de 7:45 PM a 8:59 PM</strong>. Fuera de este horario el escáner se bloquea.</small><br>        
-                    <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
+                if (!(esDomingoValido || esMiercolesValido) || !despuesInauguracion) {
+                    mostrarError("ACCESO DENEGADO (FUERA DE HORARIO)", token, resultDiv);
                     return;
                 }
             }
-        } else if (modoDetectado) {
 
-            // Para EVENTOS (MAHU, DREAMEZ, FESTIVAL): Siempre validamos la fecha. 
-            // En modo normal usa la fecha real, en Modo Prueba usa la fecha simulada en el calendario.
-            if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
-                const isPast = fechaHoy > FECHAS_PERMITIDAS[modoDetectado];
-                const mensajeTiempo = isPast ? "Este evento ya pasó y el código expiró." : "Aún no es la fecha de este evento.";
-                
-                playFeedback('error');
-                resultDiv.className = "result-box invalid";
-                resultDiv.style.backgroundColor = "var(--status-invalid)";
-                resultDiv.innerHTML = `❌ ACCESO DENEGADO<br>
-                <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">${mensajeTiempo} Fecha válida:</small>
-                <strong style="font-size:1rem;">${FECHAS_PERMITIDAS[modoDetectado]}</strong><br>
-                <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
-                return;
-            }
-        }    
+            db.ref(`clase/${token}`).once('value').then(snap => {
+                if (!snap.exists()) { mostrarError("Código de estudiante no existe.", token, resultDiv); return; }
+                const registro = snap.val();
 
-        if (modoDetectado && dbCache[modoDetectado] && dbCache[modoDetectado][token]) {
-            let registro = dbCache[modoDetectado][token];
-            const horaActual = new Date().toLocaleTimeString();
-
-if (modoDetectado === 'clase') {
-                if (registro.asistencias && registro.asistencias[fechaHoy]) {
-                    mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.asistencias[fechaHoy]} | HOY`, modoDetectado, "var(--status-used)", registro.tipo);
-                } else {
-                    // --- SISTEMA DE ALERTA DE AUSENCIAS FRECUENTES ---
-                    // Determinamos cuántas faltas tiene este alumno evaluando las fechas oficiales pasadas
-                    const fechasOficiales = [
-                        "2026-09-27", "2026-09-30", "2026-10-04", "2026-10-07",
-                        "2026-10-11", "2026-10-14", "2026-10-18", "2026-10-21",
-                        "2026-10-25", "2026-10-28", "2026-11-01", "2026-11-04",
-                        "2026-11-08", "2026-11-11", "2026-11-15", "2026-11-18",
-                        "2026-11-22", "2026-11-25", "2026-11-29", "2026-12-02",
-                        "2026-12-06"
-                    ];
-                    
-                    let faltasAcumuladas = 0;
-                    fechasOficiales.forEach(fechaClase => {
-                        if (fechaClase < fechaHoy) { // Evaluamos solo las clases que ya pasaron
-                            if (!registro.asistencias || !registro.asistencias[fechaClase]) {
-                                faltasAcumuladas++;
+                // --> SI HOY ES DÍA DE EVENTO ESPECIAL
+                if (eventoEspecialDelDia) {
+                    if (registro.accesos_especiales && registro.accesos_especiales[eventoEspecialDelDia]) {
+                        if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
+                            mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
+                        } else {
+                            // Buscar qué boleto físico vinculó para quemarlo (marcarlo usado)
+                            let ticketVinculado = null;
+                            if (registro.boletos) {
+                                for (let [codigoBoleto, evt] of Object.entries(registro.boletos)) {
+                                    if (evt === eventoEspecialDelDia) ticketVinculado = codigoBoleto;
+                                }
                             }
+                            
+                            // Actualización Bidireccional: Guardar Asistencia + Quemar Ticket
+                            const updates = {};
+                            updates[`clase/${token}/asistencias/evento_${eventoEspecialDelDia}`] = horaActualString;
+                            if (ticketVinculado) {
+                                updates[`${eventoEspecialDelDia}/${ticketVinculado}/usado`] = true;
+                                updates[`${eventoEspecialDelDia}/${ticketVinculado}/fechaIngreso`] = horaActualString;
+                            }
+
+                            db.ref().update(updates).then(() => {
+                                mostrarPantalla(resultDiv, true, registro.nombre, token, "", eventoEspecialDelDia, "var(--accent-gold)", `VIP - ${eventoEspecialDelDia.toUpperCase()}`);
+                                enviarPingFeed(registro.nombre, token, `Ingreso Vinculado`);
+                            });
+                        }
+                    } else {
+                        mostrarError(`ESTUDIANTE SIN BOLETO VINCULADO PARA EL EVENTO DE HOY`, token, resultDiv);
+                    }
+                } 
+                // --> SI HOY ES CLASE NORMAL
+                else {
+                    if (registro.asistencias && registro.asistencias[fechaHoy]) {
+                        mostrarPantalla(resultDiv, false, registro.nombre, token, `Llegada: ${registro.asistencias[fechaHoy]}`, 'clase', "var(--status-used)", registro.tipo);
+                    } else {
+                        db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActualString).then(() => {
+                            mostrarPantalla(resultDiv, true, registro.nombre, token, "", 'clase', colorFondo, registro.tipo);
+                            enviarPingFeed(registro.nombre, token, registro.tipo);
+                        });
+                    }
+                }
+            });
+        } 
+        // =======================================================
+        // ESCENARIO 2: ESCANEO DIRECTO DEL TICKET FÍSICO / EVENTO
+        // =======================================================
+        else if (modoDetectado) {
+            if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy && !isTestMode) {
+                mostrarError(`FECHA INCORRECTA PARA ESTE EVENTO`, token, resultDiv); return;
+            }
+
+            db.ref(`${modoDetectado}/${token}`).once('value').then(snap => {
+                if (!snap.exists()) { mostrarError("BOLETO NO EXISTE", token, resultDiv); return; }
+                const registroBoleto = snap.val();
+
+                if (registroBoleto.usado) {
+                    // Si ya se usó, determinamos el nombre a mostrar (estudiante o general)
+                    let nombreMostrar = registroBoleto.vinculado_a ? "Ticket Vinculado Usado" : registroBoleto.nombre;
+                    mostrarPantalla(resultDiv, false, nombreMostrar, token, `Ingreso: ${registroBoleto.fechaIngreso}`, modoDetectado, "var(--status-used)", registroBoleto.tipo);
+                } else {
+                    // Actualización Bidireccional: Quemar Ticket + Poner Asistencia al Alumno (si está vinculado)
+                    const updates = {};
+                    updates[`${modoDetectado}/${token}/usado`] = true;
+                    updates[`${modoDetectado}/${token}/fechaIngreso`] = horaActualString;
+                    
+                    if (registroBoleto.vinculado_a) {
+                        updates[`clase/${registroBoleto.vinculado_a}/asistencias/evento_${modoDetectado}`] = horaActualString;
+                    }
+
+                    db.ref().update(updates).then(() => {
+                        // Si está vinculado, mostramos el nombre del alumno en la pantalla grande
+                        if (registroBoleto.vinculado_a) {
+                            db.ref(`clase/${registroBoleto.vinculado_a}/nombre`).once('value').then(snapNombre => {
+                                const nombreEst = snapNombre.val() || "Estudiante";
+                                mostrarPantalla(resultDiv, true, nombreEst, token, "", modoDetectado, colorFondo, `TICKET VINCULADO - ${modoDetectado.toUpperCase()}`);
+                                enviarPingFeed(nombreEst, token, `Ingreso Vinculado`);
+                            });
+                        } else {
+                            // Boleto normal no vinculado (invitados externos)
+                            mostrarPantalla(resultDiv, true, registroBoleto.nombre, token, "", modoDetectado, colorFondo, registroBoleto.tipo);
+                            enviarPingFeed(registroBoleto.nombre, token, registroBoleto.tipo);
                         }
                     });
-
-                    // Construimos la alerta si tiene 2 o más faltas en el historial
-                    let alertaAusenciasHTML = "";
-                    if (faltasAcumuladas >= 2) {
-                        alertaAusenciasHTML = `
-                        <div style="background: rgba(218, 54, 51, 0.2); border: 1px solid rgba(218, 54, 51, 0.5); padding: 8px; border-radius: 8px; margin-top: 10px;">
-                            <span style="font-size:0.9rem; color: #f87171; font-weight: bold;">⚠️ AVISO DEL SISTEMA:</span><br>
-                            <small style="color:rgba(255,255,255,0.85); font-size:0.8rem;">Este alumno acumula <strong>${faltasAcumuladas} faltas</strong> en el historial.</small>
-                        </div>`;
-                    }
-                    // --------------------------------------------------
-
-                    db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActual).then(() => {
-                        // Concatenamos la alerta oculta al HTML de la imagen/tipo que ya se envía
-                        const tipoConAlerta = `${registro.tipo} ${alertaAusenciasHTML}`;
-                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo, tipoConAlerta);
-                        enviarPingFeed(registro.nombre, token, registro.tipo);
-                    });
                 }
-            } else {            
-
-                if (registro.usado) {
-                    mostrarPantalla(resultDiv, false, registro.nombre, token, `Hora: ${registro.fechaIngreso}`, modoDetectado, "var(--status-used)", registro.tipo);
-                } else {
-                    db.ref(`${modoDetectado}/${token}`).update({ usado: true, fechaIngreso: horaActual }).then(() => {
-                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", modoDetectado, colorFondo, registro.tipo);
-                        enviarPingFeed(registro.nombre, token, registro.tipo);
-                    });
-                }
-            }
+            });
         } else {
-            playFeedback('error');
-            resultDiv.className = "result-box invalid";
-            resultDiv.style.backgroundColor = "var(--status-invalid)";
-            resultDiv.innerHTML = `❌ CÓDIGO NO VÁLIDO<br><small style="font-size:0.8rem; font-weight:normal;">${token}</small>`;
+            mostrarError("CÓDIGO INVÁLIDO O NO RECONOCIDO", token, resultDiv);
         }
     }
+
+
 function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
         div.style.backgroundColor = colorFondo;
         
