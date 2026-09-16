@@ -234,7 +234,6 @@
     </div>
 
 <script>
-
     // --- TUS CREDENCIALES DE FIREBASE ---
     const firebaseConfig = {
         apiKey: "AIzaSyAL_1473Guz-pf8_kcNtHU6iUT4e1DOlrY",
@@ -248,14 +247,12 @@
 
     firebase.initializeApp(firebaseConfig);
     
-    // Iniciar sesión anónima para poder leer la base de datos con las nuevas reglas
     firebase.auth().signInAnonymously().catch((error) => {
         console.error("Error de autenticación anónima:", error);
     });
 
     const db = firebase.database();
 
-    // AUDIO & VIBRATION SYNTHESIZER
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     document.body.addEventListener('click', () => { if(audioCtx.state === 'suspended') audioCtx.resume(); }, {once:true});
     document.body.addEventListener('touchstart', () => { if(audioCtx.state === 'suspended') audioCtx.resume(); }, {once:true});
@@ -286,7 +283,6 @@
         }
     }
 
-    // INDICADOR ONLINE/OFFLINE
     const connectedRef = db.ref(".info/connected");
     connectedRef.on("value", (snap) => {
         const indicator = document.getElementById("connection-indicator");
@@ -301,7 +297,6 @@
         }
     });
 
-    // Lista oficial de los inscritos para los códigos de clase
     const alumnosInscritos = [
         "Adriana Isabela Orellana Salinas", "Alessandro Enmanuel Silvas Torres", "Alexis Antonio Garcia cruz",
         "Alicia Sugey Martínez Lara", "Alison Estefany Zepeda Hernández", "Allison Melissa Batres Coreas",
@@ -342,16 +337,14 @@
     let isScanning = false; 
     let html5QrcodeScanner;
     let scanModeTorchOn = false;
-    const scannerId = "scanner_" + Math.floor(Math.random() * 100000); // ID único para el feed en vivo
+    const scannerId = "scanner_" + Math.floor(Math.random() * 100000); 
 
-    // CONFIGURACIÓN DE FECHAS ESTRICTAS
     const FECHAS_PERMITIDAS = {
         elegidos: "2026-10-04",
         masterclass: "2026-10-27",
         festival: "2026-11-08"
     };
 
-    // CONFIGURACIÓN DE IMÁGENES DE TICKETS
     const TICKET_IMAGES = {
         elegidos: "ticket MAHU.jpg",
         masterclass: "ticket DREAMEZ.jpg", 
@@ -404,14 +397,11 @@
             });
         });
 
-        // Escuchar los "pings" de escaneos para el feed en vivo
         db.ref('live_feed').on('child_added', (snapshot) => {
             const data = snapshot.val();
-            // Evitar mostrar el propio escaneo si ya vimos la pantalla grande
             if (data.scannerId !== scannerId) {
                 mostrarFeedNotificacion(data.nombre, data.codigo, data.tipoEvento);
             }
-            // Limpiar la base para no llenarla (se borra a los 5 min, pero por si acaso)
             if (Date.now() - data.timestamp > 300000) snapshot.ref.remove(); 
         });
     }
@@ -420,17 +410,13 @@
         const feedContainer = document.getElementById("live-feed");
         const item = document.createElement("div");
         item.className = "feed-item";
-        // Texto más corto para cargar más rápido
         item.innerHTML = `<strong>${nombre}</strong> <span style="color:#aaa;">${codigo}</span>`;
-        
         feedContainer.prepend(item);
         
-        // Limitar máximo 3 notificaciones en pantalla para evitar LAG
         while (feedContainer.childNodes.length > 3) {
             feedContainer.removeChild(feedContainer.lastChild);
         }
         
-        // Quitar del DOM casi al instante (1.8 segundos)
         setTimeout(() => {
             if (item.parentNode) item.parentNode.removeChild(item);
         }, 1800);
@@ -444,7 +430,6 @@
             scannerId: scannerId,
             timestamp: Date.now()
         });
-        // Mostrar localmente también en pequeño
         mostrarFeedNotificacion(nombre, codigo, tipo);
     }
 
@@ -472,16 +457,13 @@
         document.getElementById("stat-master").innerText = `${counts.masterclass}/${totals.masterclass} (${Math.round(counts.masterclass/totals.masterclass*100)}%)`;
         document.getElementById("stat-festival").innerText = `${counts.festival}/${totals.festival} (${Math.round(counts.festival/totals.festival*100)}%)`;
         
-        // NUEVO: ESTA LÍNEA ES LA QUE ACTIVA LA TABLA
         actualizarTablaAsistencia();
     }
 
-    // NUEVO: LA FUNCIÓN QUE DIBUJA TODA LA TABLA DE ASISTENCIA
     function actualizarTablaAsistencia() {
         const contenedor = document.getElementById("tabla-asistencia-alumnos");
         if (!contenedor) return;
         
-        // Todas las fechas desde Dom 27 Sept al Dom 6 Dic
         const fechasOficiales = [
             "2026-09-27", "2026-09-30", "2026-10-04", "2026-10-07",
             "2026-10-11", "2026-10-14", "2026-10-18", "2026-10-21",
@@ -494,21 +476,17 @@
         let html = '<div style="overflow-x: auto; max-width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3);">';
         html += '<table style="width: max-content; border-collapse: collapse; background-color: #0a0a0a; color: #ffffff; font-size: 0.85rem; text-align: center;">';
         
-// Fila de los títulos (Nombre, Total, y Fechas)
         html += '<tr style="background-color: #1a1a1a;">';
-        // Redujimos el padding y añadimos max-width para que no coma toda la pantalla en celular
         html += '<th style="padding: 8px; position: sticky; left: 0; background: #1a1a1a; z-index: 2; border: 1px solid rgba(255,255,255,0.2); color: var(--accent-gold); text-align: left; text-transform: uppercase; min-width: 120px; max-width: 150px;">Alumno</th>';
         html += '<th style="padding: 8px; border: 1px solid rgba(255,255,255,0.2); color: var(--accent-gold);">Tot.</th>';
         
         fechasOficiales.forEach(fecha => {        
-
             let partes = fecha.split("-");
             let fechaCorta = `${partes[2]}/${partes[1]}`;
             html += `<th style="padding: 10px; border: 1px solid rgba(255,255,255,0.2); color: #ccc; font-weight: normal;">${fechaCorta}</th>`;
         });
         html += '</tr>';
         
-        // Construcción de la lista de los 98 alumnos
         if (dbCache.clase) {
             for (let i = 1; i <= 98; i++) {
                 let num = String(i).padStart(3, '0');
@@ -528,9 +506,7 @@
                         }
                     });
 
-// Fila individual de cada alumno
                     html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                                <!-- Truncamos el texto con ellipsis si es muy largo para evitar desbordes en móvil -->
                                 <td style="padding: 8px; position: sticky; left: 0; background: #111; border: 1px solid rgba(255,255,255,0.1); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; text-transform: capitalize; max-width: 150px;" title="${alumno.nombre}">${alumno.nombre.toLowerCase()}</td>
                                 <td style="padding: 8px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold; color: var(--accent-color);">${totalAsistencias}</td>
                                 ${celdasFechas}
@@ -547,9 +523,6 @@
 
     document.getElementById("test-mode-checkbox").addEventListener("change", actualizarEstadisticas);
 
-
-
-// NUEVA FUNCIÓN: Mostrar y ocultar la pestaña de asistencia
     function toggleAsistencia() {
         const panel = document.getElementById('panel-asistencia');
         const btn = document.getElementById('btn-toggle-asistencia');
@@ -557,70 +530,79 @@
         if (panel.style.display === 'none') {
             panel.style.display = 'block';
             btn.innerHTML = '❌ Cerrar Control de Asistencia';
-            btn.style.background = 'var(--status-invalid)'; // Se pone rojo para indicar "cerrar"
-            
-            // Opcional: Hacer scroll suave hacia abajo para ver la lista completa
+            btn.style.background = 'var(--status-invalid)'; 
             setTimeout(() => {
                 panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 100);
         } else {
             panel.style.display = 'none';
             btn.innerHTML = '📋 Abrir Control de Asistencia';
-            btn.style.background = 'var(--accent-blue)'; // Vuelve a color azul
+            btn.style.background = 'var(--accent-blue)'; 
         }
     }
 
-    function actualizarDatalist() {
-        const datalist = document.getElementById('lista-asistentes');
-        datalist.innerHTML = '';
-        ['clase', 'elegidos', 'masterclass', 'festival'].forEach(sec => {
-            if (dbCache[sec]) {
-                Object.entries(dbCache[sec]).forEach(([id, data]) => {
-                    let option = document.createElement('option');
-                    option.value = id; 
-                    option.textContent = data.nombre; 
-                    datalist.appendChild(option);
-                });
-            }
-        });
-    }
+    function resetearCodigoManual() {
+        const inputField = document.getElementById('input-reset-codigo');
+        let token = inputField.value.trim().toUpperCase();
+        if(!token) return;
 
-    function validarManual() {
-        const input = document.getElementById("input-busqueda-manual");
-        let query = input.value.trim();
-        if(!query) return;
-
-        let tokenFinal = query.toUpperCase();
+        const isTestMode = document.getElementById("test-mode-checkbox").checked;
+        const testDateInput = document.getElementById("test-date-input").value;
+        const opcionesFecha = { timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit', day: '2-digit' };
+        const fechaHoy = (isTestMode && testDateInput) ? testDateInput : new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date());
         
-        // Búsqueda en caché para encontrar el token si ingresaron un nombre
-        ['clase', 'elegidos', 'masterclass', 'festival'].forEach(sec => {
-            if (dbCache[sec]) {
-                Object.entries(dbCache[sec]).forEach(([id, data]) => {
-                    if (data.nombre.toLowerCase() === query.toLowerCase() || id === query.toUpperCase()) {
-                        tokenFinal = id;
+        let modoDetectado = null;
+        if (token.startsWith("CLASE-2026-")) modoDetectado = 'clase';
+        else if (token.startsWith("ELEGIDOS-2026-")) modoDetectado = 'elegidos';
+        else if (token.startsWith("DREAMEZ-2026-")) modoDetectado = 'masterclass';
+        else if (token.startsWith("FESTIVAL-2026-")) modoDetectado = 'festival';
+
+        if (modoDetectado && dbCache[modoDetectado] && dbCache[modoDetectado][token]) {
+            if (modoDetectado === 'clase') {
+                const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
+                const diaSemana = fechaSV.getDay(); 
+                const horaActual = fechaSV.getHours(); 
+                const minutosActuales = fechaSV.getMinutes();
+                
+                if (!isTestMode) {
+                    const esDomingoValido = (diaSemana === 0 && horaActual >= 12 && horaActual < 17);
+                    const esMiercolesValido = (diaSemana === 3 && ((horaActual === 19 && minutosActuales >= 45) || horaActual === 20));
+                    
+                    if (!esDomingoValido && !esMiercolesValido) {
+                        alert("❌ Bloqueado: No puedes anular registros fuera de los horarios de clase.");
+                        return;
+                    }
+                }
+
+                db.ref(`clase/${token}/asistencias/${fechaHoy}`).remove().then(() => {
+                    alert(`✅ Se anuló la asistencia de la fecha ${fechaHoy} para el código: ${token}`);
+                    inputField.value = '';
+                });
+            } else {
+                db.ref(`${modoDetectado}/${token}`).once('value').then(snap => {
+                    if (snap.exists()) {
+                        const dataBoleto = snap.val();
+                        const updates = {};
+                        updates[`${modoDetectado}/${token}/usado`] = false;
+                        updates[`${modoDetectado}/${token}/fechaIngreso`] = null;
+                        
+                        if (dataBoleto.vinculado_a) {
+                            updates[`clase/${dataBoleto.vinculado_a}/asistencias/evento_${modoDetectado}`] = null;
+                        }
+
+                        db.ref().update(updates).then(() => {
+                            alert(`✅ Boleto restablecido (No Usado). Se eliminó la asistencia cruzada del alumno vinculado.`);
+                            inputField.value = '';
+                        });
                     }
                 });
             }
-        });
-
-        // Forzar la detención de la cámara
-        if (html5QrcodeScanner) {
-            if (html5QrcodeScanner.getState() === 2 /* SCANNING */) {
-                html5QrcodeScanner.pause(true);
-            }
-            document.getElementById('btn-linterna').style.display = 'none';
+        } else {
+            alert("❌ Código no válido o no encontrado en la base de datos.");
         }
-        
-        document.getElementById('reader').style.display = 'none';
-        document.getElementById('result').style.display = 'block';
-        
-        // Desbloquear el seguro de escaneo para que acepte la validación manual
-        isScanning = false; 
-        
-        onScanSuccess(tokenFinal);
-        input.value = '';
     }
-    let autoResetTimer = null; // Variable global para el temporizador
+
+    let autoResetTimer = null; 
 
     function onScanSuccess(decodedText) {
         if (isScanning) return; 
@@ -652,7 +634,6 @@
         const fechaHoy = (isTestMode && testDateInput) ? testDateInput : new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date()); 
         
         const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
-        
         let diaSemana;
         if (isTestMode && testDateInput) {
             const d = new Date(testDateInput + 'T12:00:00Z');
@@ -663,17 +644,13 @@
 
         const horaActualNum = fechaSV.getHours(); 
         const minutosActuales = fechaSV.getMinutes();
-        const horaActualString = new Date().toLocaleTimeString();;
+        const horaActualString = new Date().toLocaleTimeString();
 
-        // Determinar si hoy hay un evento especial
         let eventoEspecialDelDia = null;
         Object.entries(FECHAS_PERMITIDAS).forEach(([eventoId, fecha]) => {
             if (fecha === fechaHoy) eventoEspecialDelDia = eventoId;
-       });
+        });
 
-        // =======================================================
-        // ESCENARIO 1: ESCANEO DE QR GENERAL DE CLASE
-        // =======================================================
         if (modoDetectado === 'clase') {
             const fechasOficialesClase = [
                 "2026-09-27", "2026-09-30", "2026-10-04", "2026-10-07",
@@ -688,10 +665,8 @@
                 if (!snap.exists()) { mostrarError("Código de estudiante no existe.", token, resultDiv); return; }
                 const registro = snap.val();
 
-                // --> SI HOY HAY EVENTO ESPECIAL PROGRAMADO
                 if (eventoEspecialDelDia) {
                     if (registro.accesos_especiales && registro.accesos_especiales[eventoEspecialDelDia]) {
-                        // 1. Verificamos si YA INGRESÓ (No importa la hora ni el día, la lectura prima)
                         if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
                             mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
                             return;
@@ -720,26 +695,22 @@
                         mostrarError(`ACCESO DENEGADO<br><span style="font-size:0.85rem; font-weight:normal;">No tienes boleto vinculado para el evento de hoy.</span>`, token, resultDiv);
                     }
                 } 
-                // --> SI NO HAY EVENTO, ES CLASE NORMAL
                 else {
-                    // 1. Verificamos PRIMERO si ya asistió HOY 
                     if (registro.asistencias && registro.asistencias[fechaHoy]) {
                         mostrarPantalla(resultDiv, false, registro.nombre, token, `Llegada: ${registro.asistencias[fechaHoy]}`, 'clase', "var(--status-used)", "YA INGRESÓ A CLASE HOY");
                         return;
                     }
                     
-                    // 2. Si no ha asistido, verificamos si hoy es un día oficial de clase
                     if (!fechasOficialesClase.includes(fechaHoy)) {
                         const primeraClase = fechasOficialesClase[0];
                         const ultimaClase = fechasOficialesClase[fechasOficialesClase.length - 1];
-                        let msj = "No hay clase oficial programada para hoy.";
+                        let msj = "No hay clase oficial programada para esta fecha.";
                         if (fechaHoy < primeraClase) msj = "El curso aún no ha iniciado.";
                         if (fechaHoy > ultimaClase) msj = "El curso ya ha finalizado.";
                         mostrarError(`NO HAY CLASES ESTA FECHA<br><span style="font-size:0.85rem; font-weight:normal;">${msj}</span>`, token, resultDiv);
                         return;
                     }
 
-                    // 3. Verificamos la HORA estricta (El Modo Prueba ignora este candado de horas, el modo normal NO)
                     if (!isTestMode) {
                         const esDomingoValido = (diaSemana === 0 && horaActualNum >= 12 && horaActualNum < 17);
                         const esMiercolesValido = (diaSemana === 3 && ((horaActualNum === 19 && minutosActuales >= 45) || horaActualNum === 20));
@@ -750,7 +721,6 @@
                         }
                     }
 
-                    // 4. Registrar asistencia
                     db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActualString).then(() => {
                         mostrarPantalla(resultDiv, true, registro.nombre, token, "", 'clase', colorFondo, registro.tipo);
                         enviarPingFeed(registro.nombre, token, registro.tipo);
@@ -758,22 +728,17 @@
                 }
             });
         } 
-        // =======================================================
-        // ESCENARIO 2: ESCANEO DIRECTO DEL TICKET FÍSICO / EVENTO
-        // =======================================================
         else if (modoDetectado) {
             db.ref(`${modoDetectado}/${token}`).once('value').then(snap => {
                 if (!snap.exists()) { mostrarError("BOLETO NO EXISTE", token, resultDiv); return; }
                 const registroBoleto = snap.val();
 
-                // 1. Verificamos PRIMERO si ya ingresó 
                 if (registroBoleto.usado) {
                     let nombreMostrar = registroBoleto.vinculado_a ? "Ticket Vinculado Usado" : registroBoleto.nombre;
                     mostrarPantalla(resultDiv, false, nombreMostrar, token, `Ingreso: ${registroBoleto.fechaIngreso}`, modoDetectado, "var(--status-used)", "YA SE ESCANEÓ ESTE BOLETO");
                     return;
                 }
                 
-                // 2. Si no ha ingresado, verificamos que sea la fecha correcta del evento
                 if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
                     const isPast = fechaHoy > FECHAS_PERMITIDAS[modoDetectado];
                     const mensajeTiempo = isPast ? "El evento ya fue, este boleto está caducado." : "Aún no es la fecha de este evento.";
@@ -781,7 +746,6 @@
                     return;
                 }
 
-                // 3. Registrar acceso cruzado
                 const updates = {};
                 updates[`${modoDetectado}/${token}/usado`] = true;
                 updates[`${modoDetectado}/${token}/fechaIngreso`] = horaActualString;
@@ -806,14 +770,24 @@
         } else {
             mostrarError("CÓDIGO INVÁLIDO O NO RECONOCIDO", token, resultDiv);
         }
+    }
 
+    function mostrarError(mensaje, token, div) {
+        playFeedback('error');
+        div.className = "result-box invalid";
+        div.style.backgroundColor = "var(--status-invalid)";
+        div.innerHTML = `❌ ${mensaje}<br><small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
+        
+        autoResetTimer = setTimeout(() => {
+            reiniciarEscaner();
+        }, 3500);
+    }
 
-function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
+    function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
         div.style.backgroundColor = colorFondo;
         
         let imagenTicketHtml = "";
         if (TICKET_IMAGES[modo]) {
-            // Aseguramos que la imagen del ticket se muestre grande y centrada para eventos
             imagenTicketHtml = `
             <div style="margin-top: 15px; text-align: center; animation: fadeIn 0.5s ease-in-out;">
                 <img src="${TICKET_IMAGES[modo]}" alt="Ticket ${tipoEvento}" 
@@ -826,7 +800,6 @@ function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo,
             playFeedback('success');
             div.className = "result-box valid";
             
-            // Mensaje personalizado dependiendo de si es clase normal o un evento especial
             let tituloAcceso = (modo === 'clase') ? "✅ ACCESO A CLASE CONCEDIDO" : `🌟 ¡BIENVENIDO A ${tipoEvento}!`;
             
             div.innerHTML = `<strong>${tituloAcceso}</strong><br>
@@ -835,20 +808,21 @@ function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo,
             <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${tipoEvento}</small>
             ${imagenTicketHtml}`;
             
-            // Auto-Reset Automático: Solo si fue exitoso, se reinicia a los 3.5 segundos
             autoResetTimer = setTimeout(() => {
                 reiniciarEscaner();
             }, 3500);
 
         } else {
-    
             playFeedback('error');
             div.className = "result-box used";
-            div.innerHTML = `⚠️ YA INGRESÓ ANTERIORMENTE<br>
+            div.innerHTML = `⚠️ ATENCIÓN<br>
             <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${nombre}</h3>
             <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
             <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${tipoEvento}</small>`;
-            // Si hay error (ya ingresado, etc), NO hay auto-reset. El operador debe ver qué pasa y presionar manual.
+            
+            autoResetTimer = setTimeout(() => {
+                reiniciarEscaner();
+            }, 3500);
         }
     }
 
@@ -878,21 +852,17 @@ function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo,
             html5QrcodeScanner = new Html5Qrcode("reader");
         }
 
-        // Obtener todas las cámaras antes de iniciar para evitar el Gran Angular
         Html5Qrcode.getCameras().then(devices => {
             if (devices && devices.length) {
                 let camId = devices[0].id;
                 
-                // Filtramos para buscar cámaras traseras
                 let backCams = devices.filter(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('trasera') || c.label.toLowerCase().includes('posterior'));
                 
                 if (backCams.length > 0) {
-                    // Excluir específicamente lentes gran angular, ultra wide o macro
                     let mainBack = backCams.find(c => !c.label.toLowerCase().includes('ultra') && !c.label.toLowerCase().includes('wide') && !c.label.toLowerCase().includes('angular') && !c.label.toLowerCase().includes('gran') && !c.label.toLowerCase().includes('macro'));
                     
                     camId = mainBack ? mainBack.id : backCams[0].id; 
                 } else if (devices.length > 1) {
-                    // Si el navegador no da labels claros, suele ser la última de la lista
                     camId = devices[devices.length - 1].id;
                 }
 
@@ -906,7 +876,6 @@ function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo,
         });
     }
 
-    // Función auxiliar para mantener el código limpio sin repetir promesas
     function iniciarConCamara(cameraParams, config) {
         html5QrcodeScanner.start(cameraParams, config, onScanSuccess)
         .then(() => {
@@ -916,94 +885,11 @@ function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo,
             scanModeTorchOn = false;
         }).catch(err => {
             console.log("Error al iniciar cámara principal: ", err);
-            // Fallback final si falla la cámara específica
             if (cameraParams !== undefined && cameraParams.facingMode === undefined) {
                 html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess).catch(e => console.log(e));
             }
         });
     }
-
-    function reiniciarEscaner() {
-        isScanning = false;
-        document.getElementById('result').style.display = 'none';
-        document.getElementById('reader').style.display = 'block';
-        
-        if (html5QrcodeScanner && html5QrcodeScanner.getState() === 3 /* PAUSED */) {
-            html5QrcodeScanner.resume();
-            document.getElementById('btn-linterna').style.display = 'block';
-        } else {
-            inicializarEscaner();
-        }
-    }
-
-function resetearCodigoManual() {
-        const inputField = document.getElementById('input-reset-codigo');
-        let token = inputField.value.trim().toUpperCase();
-        if(!token) return;
-
-        const isTestMode = document.getElementById("test-mode-checkbox").checked;
-        const testDateInput = document.getElementById("test-date-input").value;
-        const opcionesFecha = { timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit', day: '2-digit' };
-        
-        // Determinar qué fecha usar para la anulación
-        const fechaHoy = (isTestMode && testDateInput) ? testDateInput : new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date());
-        
-        let modoDetectado = null;
-        if (token.startsWith("CLASE-2026-")) modoDetectado = 'clase';
-        else if (token.startsWith("ELEGIDOS-2026-")) modoDetectado = 'elegidos';
-        else if (token.startsWith("DREAMEZ-2026-")) modoDetectado = 'masterclass';
-        else if (token.startsWith("FESTIVAL-2026-")) modoDetectado = 'festival';
-
-        if (modoDetectado && dbCache[modoDetectado] && dbCache[modoDetectado][token]) {
-            
-            if (modoDetectado === 'clase') {
-                const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
-                const diaSemana = fechaSV.getDay(); 
-                const horaActual = fechaSV.getHours(); 
-                const minutosActuales = fechaSV.getMinutes();
-                
-                // Si NO estamos en modo prueba, restringir borrados a horas hábiles estrictas
-                if (!isTestMode) {
-                    const esDomingoValido = (diaSemana === 0 && horaActual >= 12 && horaActual < 17);
-                    const esMiercolesValido = (diaSemana === 3 && ((horaActual === 19 && minutosActuales >= 45) || horaActual === 20));
-                    
-                    if (!esDomingoValido && !esMiercolesValido) {
-                        alert("❌ Bloqueado: No puedes anular registros fuera de los horarios de clase (Dom 12 PM - 4:59 PM / Mie 7:45 PM - 8:59 PM).");
-                        return;
-                    }
-                }
-
-                // Borrar usando la fecha controlada (hoy o modo prueba)
-                db.ref(`clase/${token}/asistencias/${fechaHoy}`).remove().then(() => {
-                    alert(`✅ Se anuló la asistencia de la fecha ${fechaHoy} para el código: ${token}`);
-                    inputField.value = '';
-                });
-            } else {
-                // Eventos especiales: Anulación bidireccional (Boleto + Estudiante)
-                db.ref(`${modoDetectado}/${token}`).once('value').then(snap => {
-                    if (snap.exists()) {
-                        const dataBoleto = snap.val();
-                        const updates = {};
-                        
-                        updates[`${modoDetectado}/${token}/usado`] = false;
-                        updates[`${modoDetectado}/${token}/fechaIngreso`] = null;
-                        
-                        // Si el boleto estaba vinculado a un alumno, borrarle también la asistencia cruzada
-                        if (dataBoleto.vinculado_a) {
-                            updates[`clase/${dataBoleto.vinculado_a}/asistencias/evento_${modoDetectado}`] = null;
-                        }
-
-                        db.ref().update(updates).then(() => {
-                            alert(`✅ Boleto restablecido (No Usado). Se eliminó la asistencia cruzada del alumno vinculado.`);
-                            inputField.value = '';
-                        });
-                    }
-                });
-            }
-        } else {
-            alert("❌ Código no válido o no encontrado en la base de datos.");
-        }
-    }    
 
     function exportarReporte() {
         const selector = document.getElementById('export-filter');
@@ -1037,7 +923,7 @@ function resetearCodigoManual() {
         link.click();
         document.body.removeChild(link);
         
-        selector.value = ""; // Resetear selector
+        selector.value = ""; 
     }
 
     function resetearBaseDatosModo() {
@@ -1051,8 +937,6 @@ function resetearCodigoManual() {
             });
         }
     }
-
-    
 
     window.onload = () => {
         inicializarNubeSiEsNecesario();
