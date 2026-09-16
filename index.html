@@ -261,7 +261,7 @@
                 <button id="btn-linterna" onclick="toggleLinterna()" style="background: transparent; border: 1px solid var(--accent-color); color: var(--accent-color); padding: 4px 10px; border-radius: 5px; font-size: 0.75rem; cursor: pointer; display: none;">🔦 Encender Linterna</button>
             </div>
 
-            <<p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; text-align: left;">¿Error al escanear? Anular ingreso manual:</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; text-align: left;">¿Error al escanear? Anular ingreso manual:</p>
             <div style="display: flex; gap: 8px;">
                 <input type="text" id="input-reset-codigo" placeholder="Ej: CLASE-2026-081" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 0.9rem;">
                 <button onclick="resetearCodigoManual()" style="background: var(--status-invalid); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;">Anular Ingreso</button>
@@ -726,8 +726,9 @@
         let eventoEspecialDelDia = null;
         Object.entries(FECHAS_PERMITIDAS).forEach(([eventoId, fecha]) => {
             if (fecha === fechaHoy) eventoEspecialDelDia = eventoId;
-        });
-// =======================================================
+       });
+
+        // =======================================================
         // ESCENARIO 1: ESCANEO DE QR GENERAL DE CLASE
         // =======================================================
         if (modoDetectado === 'clase') {
@@ -744,10 +745,10 @@
                 if (!snap.exists()) { mostrarError("Código de estudiante no existe.", token, resultDiv); return; }
                 const registro = snap.val();
 
-                // --> SI ES DÍA DE EVENTO ESPECIAL
+                // --> SI HOY HAY EVENTO ESPECIAL PROGRAMADO
                 if (eventoEspecialDelDia) {
                     if (registro.accesos_especiales && registro.accesos_especiales[eventoEspecialDelDia]) {
-                        // 1. Verificamos PRIMERO si ya ingresó
+                        // 1. Verificamos si YA INGRESÓ (No importa la hora ni el día, la lectura prima)
                         if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
                             mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
                             return;
@@ -773,24 +774,29 @@
                         });
                         
                     } else {
-                        mostrarError(`ESTUDIANTE SIN BOLETO VINCULADO PARA EL EVENTO DE HOY`, token, resultDiv);
+                        mostrarError(`ACCESO DENEGADO<br><span style="font-size:0.85rem; font-weight:normal;">No tienes boleto vinculado para el evento de hoy.</span>`, token, resultDiv);
                     }
                 } 
-                // --> SI ES CLASE NORMAL
+                // --> SI NO HAY EVENTO, ES CLASE NORMAL
                 else {
-                    // 1. Verificamos PRIMERO si ya asistió en la fecha ingresada/actual
+                    // 1. Verificamos PRIMERO si ya asistió HOY 
                     if (registro.asistencias && registro.asistencias[fechaHoy]) {
-                        mostrarPantalla(resultDiv, false, registro.nombre, token, `Llegada: ${registro.asistencias[fechaHoy]}`, 'clase', "var(--status-used)", registro.tipo);
+                        mostrarPantalla(resultDiv, false, registro.nombre, token, `Llegada: ${registro.asistencias[fechaHoy]}`, 'clase', "var(--status-used)", "YA INGRESÓ A CLASE HOY");
                         return;
                     }
                     
-                    // 2. Si no ha asistido, verificamos si la fecha es oficial
+                    // 2. Si no ha asistido, verificamos si hoy es un día oficial de clase
                     if (!fechasOficialesClase.includes(fechaHoy)) {
-                        mostrarError(`NO HAY CLASES ESTA FECHA<br><span style="font-size:0.85rem; font-weight:normal;">La fecha validada (${fechaHoy}) no corresponde a una clase oficial programada.</span>`, token, resultDiv);
+                        const primeraClase = fechasOficialesClase[0];
+                        const ultimaClase = fechasOficialesClase[fechasOficialesClase.length - 1];
+                        let msj = "No hay clase oficial programada para hoy.";
+                        if (fechaHoy < primeraClase) msj = "El curso aún no ha iniciado.";
+                        if (fechaHoy > ultimaClase) msj = "El curso ya ha finalizado.";
+                        mostrarError(`NO HAY CLASES ESTA FECHA<br><span style="font-size:0.85rem; font-weight:normal;">${msj}</span>`, token, resultDiv);
                         return;
                     }
 
-                    // 3. Verificamos la HORA estricta (El Modo Prueba ignora este candado de horas)
+                    // 3. Verificamos la HORA estricta (El Modo Prueba ignora este candado de horas, el modo normal NO)
                     if (!isTestMode) {
                         const esDomingoValido = (diaSemana === 0 && horaActualNum >= 12 && horaActualNum < 17);
                         const esMiercolesValido = (diaSemana === 3 && ((horaActualNum === 19 && minutosActuales >= 45) || horaActualNum === 20));
@@ -817,17 +823,17 @@
                 if (!snap.exists()) { mostrarError("BOLETO NO EXISTE", token, resultDiv); return; }
                 const registroBoleto = snap.val();
 
-                // 1. Verificamos PRIMERO si ya ingresó (No importa la fecha)
+                // 1. Verificamos PRIMERO si ya ingresó 
                 if (registroBoleto.usado) {
                     let nombreMostrar = registroBoleto.vinculado_a ? "Ticket Vinculado Usado" : registroBoleto.nombre;
-                    mostrarPantalla(resultDiv, false, nombreMostrar, token, `Ingreso: ${registroBoleto.fechaIngreso}`, modoDetectado, "var(--status-used)", registroBoleto.tipo);
+                    mostrarPantalla(resultDiv, false, nombreMostrar, token, `Ingreso: ${registroBoleto.fechaIngreso}`, modoDetectado, "var(--status-used)", "YA SE ESCANEÓ ESTE BOLETO");
                     return;
                 }
                 
                 // 2. Si no ha ingresado, verificamos que sea la fecha correcta del evento
                 if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
                     const isPast = fechaHoy > FECHAS_PERMITIDAS[modoDetectado];
-                    const mensajeTiempo = isPast ? "El evento ya pasó. Boleto caducado." : "Aún no es el día del evento.";
+                    const mensajeTiempo = isPast ? "El evento ya fue, este boleto está caducado." : "Aún no es la fecha de este evento.";
                     mostrarError(`${mensajeTiempo}<br><span style="font-size:0.85rem; font-weight:normal;">Día oficial: ${FECHAS_PERMITIDAS[modoDetectado]}</span>`, token, resultDiv); 
                     return;
                 }
@@ -854,13 +860,9 @@
                     }
                 });
             });
-        }
-        
-
- else {
+        } else {
             mostrarError("CÓDIGO INVÁLIDO O NO RECONOCIDO", token, resultDiv);
         }
-    }
 
 
 function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
