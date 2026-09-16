@@ -120,9 +120,9 @@
         .feed-item {
             background: rgba(15, 15, 15, 0.9); border: 1px solid rgba(227, 218, 201, 0.3);
             border-left: 4px solid var(--accent-color); border-radius: 8px;
-            padding: 10px 15px; font-size: 0.85rem; backdrop-filter: blur(5px);
-            animation: slideIn 0.3s ease-out forwards, fadeOut 0.5s ease-in 4s forwards;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); color: #fff;
+            padding: 10px 15px; font-size: 0.85rem; backdrop-filter: blur(2px);
+            animation: slideIn 0.2s ease-out forwards, fadeOut 0.3s ease-in 1.5s forwards;
+            box-shadow: none; color: #fff;
         }
         .feed-item strong { display: block; font-size: 0.95rem; color: var(--accent-color); margin-bottom: 2px; }
 
@@ -255,25 +255,17 @@
         </div>
 
         <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--card-border);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Búsqueda Manual (Fallback):</p>
-                <button id="btn-linterna" onclick="toggleLinterna()" style="background: transparent; border: 1px solid var(--accent-color); color: var(--accent-color); padding: 4px 10px; border-radius: 5px; font-size: 0.75rem; cursor: pointer; display: none;">🔦 Linterna</button>
-            </div>
-            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                <input type="text" list="lista-asistentes" id="input-busqueda-manual" placeholder="Escriba nombre o código..." style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 0.9rem;">
-                <datalist id="lista-asistentes"></datalist>
-                <button onclick="validarManual()" style="background: var(--accent-blue); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;">Validar</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Opciones de Escáner:</p>
+                <button id="btn-linterna" onclick="toggleLinterna()" style="background: transparent; border: 1px solid var(--accent-color); color: var(--accent-color); padding: 4px 10px; border-radius: 5px; font-size: 0.75rem; cursor: pointer; display: none;">🔦 Encender Linterna</button>
             </div>
 
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; text-align: left;">¿Error al escanear? Anular ingreso:</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; text-align: left;">¿Error al escanear? Anular ingreso manual:</p>
             <div style="display: flex; gap: 8px;">
                 <input type="text" id="input-reset-codigo" placeholder="Ej: CLASE-2026-081" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 0.9rem;">
-                <button onclick="resetearCodigoManual()" style="background: var(--status-invalid); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;">Anular</button>
+                <button onclick="resetearCodigoManual()" style="background: var(--status-invalid); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;">Anular Ingreso</button>
             </div>
         </div>
-
-<button class="btn-reset" onclick="resetearBaseDatosModo()">Reiniciar TODA la base de datos general</button>
-    </div>
 
     <!-- NUEVO: Botón para mostrar/ocultar la pestaña -->
     <button class="pill-btn" id="btn-toggle-asistencia" onclick="toggleAsistencia()" style="margin-top: 20px; background: var(--accent-blue); color: #fff; z-index: 2;">📋 Abrir Control de Asistencia</button>
@@ -454,7 +446,6 @@
                 if (snapshot.exists()) {
                     dbCache[seccion] = snapshot.val();
                     actualizarEstadisticas();
-                    actualizarDatalist();
                 }
             });
         });
@@ -475,14 +466,20 @@
         const feedContainer = document.getElementById("live-feed");
         const item = document.createElement("div");
         item.className = "feed-item";
-        item.innerHTML = `<strong>${nombre}</strong> <span style="color:#aaa;">${codigo}</span><br><small>${tipo}</small>`;
+        // Texto más corto para cargar más rápido
+        item.innerHTML = `<strong>${nombre}</strong> <span style="color:#aaa;">${codigo}</span>`;
         
         feedContainer.prepend(item);
         
-        // Quitar del DOM después de 4.5 segundos
+        // Limitar máximo 3 notificaciones en pantalla para evitar LAG
+        while (feedContainer.childNodes.length > 3) {
+            feedContainer.removeChild(feedContainer.lastChild);
+        }
+        
+        // Quitar del DOM casi al instante (1.8 segundos)
         setTimeout(() => {
             if (item.parentNode) item.parentNode.removeChild(item);
-        }, 4500);
+        }, 1800);
     }
 
     function enviarPingFeed(nombre, codigo, tipo) {
