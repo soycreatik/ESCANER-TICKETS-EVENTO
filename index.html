@@ -711,6 +711,21 @@
                         return;
                     }
 
+                    // --- SISTEMA DE ALERTA DE AUSENCIAS FRECUENTES ---
+                    let faltasAcumuladas = 0;
+                    fechasOficialesClase.forEach(fechaClase => {
+                        // Comprobar si la fecha ya pasó y no tiene asistencia
+                        if (fechaClase < fechaHoy && (!registro.asistencias || !registro.asistencias[fechaClase])) {
+                            faltasAcumuladas++;
+                        }
+                    });
+
+                    let alertaAusenciasHTML = registro.tipo;
+                    if (faltasAcumuladas >= 2) {
+                        alertaAusenciasHTML = `${registro.tipo} <br><div style="background: rgba(218, 54, 51, 0.2); border: 1px solid rgba(218, 54, 51, 0.5); padding: 6px; border-radius: 6px; margin-top: 8px;">⚠️ Aviso: Este alumno lleva <strong>${faltasAcumuladas} faltas</strong> previas.</div>`;
+                    }
+                    // --------------------------------------------------
+
                     if (!isTestMode) {
                         const esDomingoValido = (diaSemana === 0 && horaActualNum >= 12 && horaActualNum < 17);
                         const esMiercolesValido = (diaSemana === 3 && ((horaActualNum === 19 && minutosActuales >= 45) || horaActualNum === 20));
@@ -722,7 +737,7 @@
                     }
 
                     db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActualString).then(() => {
-                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", 'clase', colorFondo, registro.tipo);
+                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", 'clase', colorFondo, alertaAusenciasHTML);
                         enviarPingFeed(registro.nombre, token, registro.tipo);
                     });
                 }
@@ -780,7 +795,7 @@
         
         autoResetTimer = setTimeout(() => {
             reiniciarEscaner();
-        }, 3500);
+        }, 2500); // 2.5 Segundos de auto-reset en errores
     }
 
     function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
