@@ -727,21 +727,31 @@
         Object.entries(FECHAS_PERMITIDAS).forEach(([eventoId, fecha]) => {
             if (fecha === fechaHoy) eventoEspecialDelDia = eventoId;
         });
-
-        // =======================================================
-        // ESCENARIO 1: ESCANEO DE QR GENERAL DE CLASE
-        // =======================================================
-        // =======================================================
+// =======================================================
         // ESCENARIO 1: ESCANEO DE QR GENERAL DE CLASE
         // =======================================================
         if (modoDetectado === 'clase') {
-            // El !isTestMode permite que el Modo Prueba se salte este candado estricto
+            const fechasOficialesClase = [
+                "2026-09-27", "2026-09-30", "2026-10-04", "2026-10-07",
+                "2026-10-11", "2026-10-14", "2026-10-18", "2026-10-21",
+                "2026-10-25", "2026-10-28", "2026-11-01", "2026-11-04",
+                "2026-11-08", "2026-11-11", "2026-11-15", "2026-11-18",
+                "2026-11-22", "2026-11-25", "2026-11-29", "2026-12-02",
+                "2026-12-06"
+            ];
+
+            // Candado 1: La fecha (real o simulada) DEBE ser una clase oficial o un evento
+            if (!fechasOficialesClase.includes(fechaHoy) && !eventoEspecialDelDia) {
+                mostrarError(`FECHA INVÁLIDA<br><span style="font-size:0.85rem; font-weight:normal;">La fecha (${fechaHoy}) no corresponde a ninguna clase o evento oficial.</span>`, token, resultDiv);
+                return;
+            }
+
+            // Candado 2: La hora debe ser correcta (El Modo Prueba SÍ perdona la hora, pero NO el candado 1 de fechas)
             if (!isTestMode && !eventoEspecialDelDia) {
                 const esDomingoValido = (diaSemana === 0 && horaActualNum >= 12 && horaActualNum < 17);
                 const esMiercolesValido = (diaSemana === 3 && ((horaActualNum === 19 && minutosActuales >= 45) || horaActualNum === 20));
-                const despuesInauguracion = fechaHoy >= "2026-09-27";
                 
-                if (!(esDomingoValido || esMiercolesValido) || !despuesInauguracion) {
+                if (!(esDomingoValido || esMiercolesValido)) {
                     mostrarError(`ACCESO DENEGADO (FUERA DE HORARIO)<br><span style="font-size:0.85rem; font-weight:normal;">Clases: Domingos 12PM-4:59PM / Miércoles 7:45PM-8:59PM.</span>`, token, resultDiv);
                     return;
                 }
@@ -751,13 +761,12 @@
                 if (!snap.exists()) { mostrarError("Código de estudiante no existe.", token, resultDiv); return; }
                 const registro = snap.val();
 
-                // --> SI HOY ES DÍA DE EVENTO ESPECIAL
+                // --> SI ES DÍA DE EVENTO ESPECIAL
                 if (eventoEspecialDelDia) {
                     if (registro.accesos_especiales && registro.accesos_especiales[eventoEspecialDelDia]) {
                         if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
                             mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
                         } else {
-                            // Buscar qué boleto físico vinculó para quemarlo (marcarlo usado)
                             let ticketVinculado = null;
                             if (registro.boletos) {
                                 for (let [codigoBoleto, evt] of Object.entries(registro.boletos)) {
@@ -765,7 +774,6 @@
                                 }
                             }
                             
-                            // Actualización Bidireccional: Guardar Asistencia + Quemar Ticket
                             const updates = {};
                             updates[`clase/${token}/asistencias/evento_${eventoEspecialDelDia}`] = horaActualString;
                             if (ticketVinculado) {
@@ -782,7 +790,7 @@
                         mostrarError(`ESTUDIANTE SIN BOLETO VINCULADO PARA EL EVENTO DE HOY`, token, resultDiv);
                     }
                 } 
-                // --> SI HOY ES CLASE NORMAL
+                // --> SI ES CLASE NORMAL
                 else {
                     if (registro.asistencias && registro.asistencias[fechaHoy]) {
                         mostrarPantalla(resultDiv, false, registro.nombre, token, `Llegada: ${registro.asistencias[fechaHoy]}`, 'clase', "var(--status-used)", registro.tipo);
@@ -799,9 +807,9 @@
         // ESCENARIO 2: ESCANEO DIRECTO DEL TICKET FÍSICO / EVENTO
         // =======================================================
         else if (modoDetectado) {
-            // El !isTestMode permite que en Modo Prueba puedas escanear tickets cualquier día
-            if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy && !isTestMode) {
-                mostrarError(`FECHA INCORRECTA PARA ESTE EVENTO<br><span style="font-size:0.85rem; font-weight:normal;">Este boleto es exclusivamente para el: ${FECHAS_PERMITIDAS[modoDetectado]}</span>`, token, resultDiv); 
+            // Candado absoluto de fecha para eventos (incluye Modo Prueba)
+            if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
+                mostrarError(`FECHA INCORRECTA PARA ESTE EVENTO<br><span style="font-size:0.85rem; font-weight:normal;">Exclusivo para la fecha: ${FECHAS_PERMITIDAS[modoDetectado]}.<br>Detectada/Simulada: ${fechaHoy}</span>`, token, resultDiv); 
                 return;
             }
 
@@ -810,11 +818,9 @@
                 const registroBoleto = snap.val();
 
                 if (registroBoleto.usado) {
-                    // Si ya se usó, determinamos el nombre a mostrar (estudiante o general)
                     let nombreMostrar = registroBoleto.vinculado_a ? "Ticket Vinculado Usado" : registroBoleto.nombre;
                     mostrarPantalla(resultDiv, false, nombreMostrar, token, `Ingreso: ${registroBoleto.fechaIngreso}`, modoDetectado, "var(--status-used)", registroBoleto.tipo);
                 } else {
-                    // Actualización Bidireccional: Quemar Ticket + Poner Asistencia al Alumno (si está vinculado)
                     const updates = {};
                     updates[`${modoDetectado}/${token}/usado`] = true;
                     updates[`${modoDetectado}/${token}/fechaIngreso`] = horaActualString;
@@ -824,7 +830,6 @@
                     }
 
                     db.ref().update(updates).then(() => {
-                        // Si está vinculado, mostramos el nombre del alumno en la pantalla grande
                         if (registroBoleto.vinculado_a) {
                             db.ref(`clase/${registroBoleto.vinculado_a}/nombre`).once('value').then(snapNombre => {
                                 const nombreEst = snapNombre.val() || "Estudiante";
@@ -832,14 +837,16 @@
                                 enviarPingFeed(nombreEst, token, `Ingreso Vinculado`);
                             });
                         } else {
-                            // Boleto normal no vinculado (invitados externos)
                             mostrarPantalla(resultDiv, true, registroBoleto.nombre, token, "", modoDetectado, colorFondo, registroBoleto.tipo);
                             enviarPingFeed(registroBoleto.nombre, token, registroBoleto.tipo);
                         }
                     });
                 }
             });
-        } else {
+        }
+        
+
+ else {
             mostrarError("CÓDIGO INVÁLIDO O NO RECONOCIDO", token, resultDiv);
         }
     }
@@ -1016,10 +1023,25 @@ function resetearCodigoManual() {
                     inputField.value = '';
                 });
             } else {
-                // Eventos especiales (MAHU, DREAMEZ, FESTIVAL)
-                db.ref(`${modoDetectado}/${token}`).update({ usado: false, fechaIngreso: null }).then(() => {
-                    alert(`✅ Código restablecido (No Usado): ${token}`);
-                    inputField.value = '';
+                // Eventos especiales: Anulación bidireccional (Boleto + Estudiante)
+                db.ref(`${modoDetectado}/${token}`).once('value').then(snap => {
+                    if (snap.exists()) {
+                        const dataBoleto = snap.val();
+                        const updates = {};
+                        
+                        updates[`${modoDetectado}/${token}/usado`] = false;
+                        updates[`${modoDetectado}/${token}/fechaIngreso`] = null;
+                        
+                        // Si el boleto estaba vinculado a un alumno, borrarle también la asistencia cruzada
+                        if (dataBoleto.vinculado_a) {
+                            updates[`clase/${dataBoleto.vinculado_a}/asistencias/evento_${modoDetectado}`] = null;
+                        }
+
+                        db.ref().update(updates).then(() => {
+                            alert(`✅ Boleto restablecido (No Usado). Se eliminó la asistencia cruzada del alumno vinculado.`);
+                            inputField.value = '';
+                        });
+                    }
                 });
             }
         } else {
