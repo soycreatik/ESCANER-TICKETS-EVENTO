@@ -709,10 +709,18 @@
         const fechaHoy = (isTestMode && testDateInput) ? testDateInput : new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date()); 
         
         const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
-        const diaSemana = fechaSV.getDay(); 
+        
+        let diaSemana;
+        if (isTestMode && testDateInput) {
+            const d = new Date(testDateInput + 'T12:00:00Z');
+            diaSemana = d.getUTCDay();
+        } else {
+            diaSemana = fechaSV.getDay(); 
+        }
+
         const horaActualNum = fechaSV.getHours(); 
         const minutosActuales = fechaSV.getMinutes();
-        const horaActualString = new Date().toLocaleTimeString();
+        const horaActualString = new Date().toLocaleTimeString();;
 
         // Determinar si hoy hay un evento especial
         let eventoEspecialDelDia = null;
@@ -723,13 +731,18 @@
         // =======================================================
         // ESCENARIO 1: ESCANEO DE QR GENERAL DE CLASE
         // =======================================================
+        // =======================================================
+        // ESCENARIO 1: ESCANEO DE QR GENERAL DE CLASE
+        // =======================================================
         if (modoDetectado === 'clase') {
+            // El !isTestMode permite que el Modo Prueba se salte este candado estricto
             if (!isTestMode && !eventoEspecialDelDia) {
                 const esDomingoValido = (diaSemana === 0 && horaActualNum >= 12 && horaActualNum < 17);
                 const esMiercolesValido = (diaSemana === 3 && ((horaActualNum === 19 && minutosActuales >= 45) || horaActualNum === 20));
                 const despuesInauguracion = fechaHoy >= "2026-09-27";
+                
                 if (!(esDomingoValido || esMiercolesValido) || !despuesInauguracion) {
-                    mostrarError("ACCESO DENEGADO (FUERA DE HORARIO)", token, resultDiv);
+                    mostrarError(`ACCESO DENEGADO (FUERA DE HORARIO)<br><span style="font-size:0.85rem; font-weight:normal;">Clases: Domingos 12PM-4:59PM / Miércoles 7:45PM-8:59PM.</span>`, token, resultDiv);
                     return;
                 }
             }
@@ -786,8 +799,10 @@
         // ESCENARIO 2: ESCANEO DIRECTO DEL TICKET FÍSICO / EVENTO
         // =======================================================
         else if (modoDetectado) {
+            // El !isTestMode permite que en Modo Prueba puedas escanear tickets cualquier día
             if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy && !isTestMode) {
-                mostrarError(`FECHA INCORRECTA PARA ESTE EVENTO`, token, resultDiv); return;
+                mostrarError(`FECHA INCORRECTA PARA ESTE EVENTO<br><span style="font-size:0.85rem; font-weight:normal;">Este boleto es exclusivamente para el: ${FECHAS_PERMITIDAS[modoDetectado]}</span>`, token, resultDiv); 
+                return;
             }
 
             db.ref(`${modoDetectado}/${token}`).once('value').then(snap => {
