@@ -914,6 +914,37 @@
         });
     }
 
+    // --- ESTA ES LA FUNCIÓN VITAL QUE FALTABA PARA QUE NO SE TRABE EL ESCÁNER ---
+    function reiniciarEscaner() {
+        // Matamos el temporizador si presionas el botón manualmente para no esperar
+        if (autoResetTimer) { 
+            clearTimeout(autoResetTimer); 
+            autoResetTimer = null; 
+        }
+        
+        isScanning = false;
+        document.getElementById('result').style.display = 'none';
+        document.getElementById('reader').style.display = 'block';
+        
+        // Descongelamos la cámara de forma segura
+        if (html5QrcodeScanner) {
+            try {
+                if (html5QrcodeScanner.getState() === 3 /* PAUSED */) {
+                    html5QrcodeScanner.resume();
+                    document.getElementById('btn-linterna').style.display = 'block';
+                } else if (html5QrcodeScanner.getState() !== 2 /* SCANNING */) {
+                    html5QrcodeScanner.clear().catch(e => console.log(e));
+                    setTimeout(() => inicializarEscaner(), 200);
+                }
+            } catch(e) {
+                console.log("Error al reanudar cámara:", e);
+                inicializarEscaner();
+            }
+        } else {
+            inicializarEscaner();
+        }
+    }
+
     function exportarReporte() {
         const selector = document.getElementById('export-filter');
         const filtro = selector.value;
