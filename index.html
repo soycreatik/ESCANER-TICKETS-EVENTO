@@ -233,9 +233,10 @@
     </script>
 
     <div class="glass-card">
-            <div class="badge" id="badge-mode">Escáner Universal</div>
-            <img src="LOGO CURSO FOTOGRAFIA DIGITAL.png" alt="ELEGIDOS" style="max-width: 250px; height: auto; margin: 0 auto -5px auto; display: block; filter: drop-shadow(0px 10px 20px rgba(0,0,0,0.6));">
-            <div class="subtitle" id="subtitle-mode" style="margin-bottom: 10px;">Clase, MAHU FILMS, DREAMEZ y FESTIVAL CREATIVO ELEGIDOS</div>
+            
+<div class="badge" id="badge-mode">Escáner Universal</div>
+            <h2 style="font-size: 2.5rem; margin: 10px 0;">ELEGIDOS</h2>
+            <div class="subtitle" id="subtitle-mode" style="margin-bottom: 20px;">Clases & Eventos Oficiales</div>
 
         
         <div id="reader"></div>
@@ -639,6 +640,8 @@
         if(!query) return;
 
         let tokenFinal = query.toUpperCase();
+        
+        // Búsqueda en caché para encontrar el token si ingresaron un nombre
         ['clase', 'elegidos', 'masterclass', 'festival'].forEach(sec => {
             if (dbCache[sec]) {
                 Object.entries(dbCache[sec]).forEach(([id, data]) => {
@@ -649,18 +652,23 @@
             }
         });
 
-        // Detener y ocultar cámara al usar entrada manual para ver el mensaje inmediatamente
-        if (html5QrcodeScanner && isScanning === false) {
-            html5QrcodeScanner.pause(true);
+        // Forzar la detención de la cámara
+        if (html5QrcodeScanner) {
+            if (html5QrcodeScanner.getState() === 2 /* SCANNING */) {
+                html5QrcodeScanner.pause(true);
+            }
             document.getElementById('btn-linterna').style.display = 'none';
         }
+        
         document.getElementById('reader').style.display = 'none';
         document.getElementById('result').style.display = 'block';
+        
+        // Desbloquear el seguro de escaneo para que acepte la validación manual
+        isScanning = false; 
         
         onScanSuccess(tokenFinal);
         input.value = '';
     }
-
     let autoResetTimer = null; // Variable global para el temporizador
 
     function onScanSuccess(decodedText) {
