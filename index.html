@@ -651,21 +651,23 @@
             if (fecha === fechaHoy) eventoEspecialDelDia = eventoId;
         });
 
-        if (modoDetectado === 'clase') {
-            const fechasOficialesClase = [
-                "2026-09-27", "2026-09-30", "2026-10-04", "2026-10-07",
-                "2026-10-11", "2026-10-14", "2026-10-18", "2026-10-21",
-                "2026-10-25", "2026-10-28", "2026-11-01", "2026-11-04",
-                "2026-11-08", "2026-11-11", "2026-11-15", "2026-11-18",
-                "2026-11-22", "2026-11-25", "2026-11-29", "2026-12-02",
-                "2026-12-06"
-            ];
+        const fechasOficialesClase = [
+            "2026-09-27", "2026-09-30", "2026-10-04", "2026-10-07",
+            "2026-10-11", "2026-10-14", "2026-10-18", "2026-10-21",
+            "2026-10-25", "2026-10-28", "2026-11-01", "2026-11-04",
+            "2026-11-08", "2026-11-11", "2026-11-15", "2026-11-18",
+            "2026-11-22", "2026-11-25", "2026-11-29", "2026-12-02",
+            "2026-12-06"
+        ];
 
+        if (modoDetectado === 'clase') {
             db.ref(`clase/${token}`).once('value').then(snap => {
                 if (!snap.exists()) { mostrarError("Código de estudiante no existe.", token, resultDiv); return; }
                 const registro = snap.val();
 
+                // Validación Unificada: ¿Es día de Evento Especial o de Clase?
                 if (eventoEspecialDelDia) {
+                    // Validar si tiene acceso (boleto vinculado o pase especial directo al perfil)
                     if (registro.accesos_especiales && registro.accesos_especiales[eventoEspecialDelDia]) {
                         if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
                             mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
@@ -690,60 +692,19 @@
                             mostrarPantalla(resultDiv, true, registro.nombre, token, "", eventoEspecialDelDia, "var(--accent-gold)", `VIP - ${eventoEspecialDelDia.toUpperCase()}`);
                             enviarPingFeed(registro.nombre, token, `Ingreso Vinculado`);
                         });
-                        
                     } else {
-                        mostrarError(`ACCESO DENEGADO<br><span style="font-size:0.85rem; font-weight:normal;">No tienes boleto vinculado para el evento de hoy.</span>`, token, resultDiv);
+                        // Si es día de evento pero no tiene boleto asignado, y quiere entrar a clase normal:
+                        procesarAsistenciaClase(token, registro, fechaHoy, isTestMode, diaSemana, horaActualNum, minutosActuales, horaActualString, fechasOficialesClase, colorFondo, resultDiv);
                     }
                 } 
                 else {
-                    if (registro.asistencias && registro.asistencias[fechaHoy]) {
-                        mostrarPantalla(resultDiv, false, registro.nombre, token, `Llegada: ${registro.asistencias[fechaHoy]}`, 'clase', "var(--status-used)", "YA INGRESÓ A CLASE HOY");
-                        return;
-                    }
-                    
-                    if (!fechasOficialesClase.includes(fechaHoy)) {
-                        const primeraClase = fechasOficialesClase[0];
-                        const ultimaClase = fechasOficialesClase[fechasOficialesClase.length - 1];
-                        let msj = "No hay clase oficial programada para esta fecha.";
-                        if (fechaHoy < primeraClase) msj = "El curso aún no ha iniciado.";
-                        if (fechaHoy > ultimaClase) msj = "El curso ya ha finalizado.";
-                        mostrarError(`NO HAY CLASES ESTA FECHA<br><span style="font-size:0.85rem; font-weight:normal;">${msj}</span>`, token, resultDiv);
-                        return;
-                    }
-
-                    // --- SISTEMA DE ALERTA DE AUSENCIAS FRECUENTES ---
-                    let faltasAcumuladas = 0;
-                    fechasOficialesClase.forEach(fechaClase => {
-                        // Comprobar si la fecha ya pasó y no tiene asistencia
-                        if (fechaClase < fechaHoy && (!registro.asistencias || !registro.asistencias[fechaClase])) {
-                            faltasAcumuladas++;
-                        }
-                    });
-
-                    let alertaAusenciasHTML = registro.tipo;
-                    if (faltasAcumuladas >= 2) {
-                        alertaAusenciasHTML = `${registro.tipo} <br><div style="background: rgba(218, 54, 51, 0.2); border: 1px solid rgba(218, 54, 51, 0.5); padding: 6px; border-radius: 6px; margin-top: 8px;">⚠️ Aviso: Este alumno lleva <strong>${faltasAcumuladas} faltas</strong> previas.</div>`;
-                    }
-                    // --------------------------------------------------
-
-                    if (!isTestMode) {
-                        const esDomingoValido = (diaSemana === 0 && horaActualNum >= 12 && horaActualNum < 17);
-                        const esMiercolesValido = (diaSemana === 3 && ((horaActualNum === 19 && minutosActuales >= 45) || horaActualNum === 20));
-                        
-                        if (!(esDomingoValido || esMiercolesValido)) {
-                            mostrarError(`CLASE CERRADA (FUERA DE HORARIO)<br><span style="font-size:0.85rem; font-weight:normal;">Clases: Domingos 12PM-4:59PM / Miércoles 7:45PM-8:59PM.</span>`, token, resultDiv);
-                            return;
-                        }
-                    }
-
-                    db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActualString).then(() => {
-                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", 'clase', colorFondo, alertaAusenciasHTML);
-                        enviarPingFeed(registro.nombre, token, registro.tipo);
-                    });
+                    // Si NO es día de evento especial, procesar como clase normal
+                    procesarAsistenciaClase(token, registro, fechaHoy, isTestMode, diaSemana, horaActualNum, minutosActuales, horaActualString, fechasOficialesClase, colorFondo, resultDiv);
                 }
             });
         } 
         else if (modoDetectado) {
+            // Lógica para escaneo directo de boleto de evento
             db.ref(`${modoDetectado}/${token}`).once('value').then(snap => {
                 if (!snap.exists()) { mostrarError("BOLETO NO EXISTE", token, resultDiv); return; }
                 const registroBoleto = snap.val();
@@ -785,6 +746,51 @@
         } else {
             mostrarError("CÓDIGO INVÁLIDO O NO RECONOCIDO", token, resultDiv);
         }
+    }
+
+    // Función auxiliar para procesar la asistencia a clase
+    function procesarAsistenciaClase(token, registro, fechaHoy, isTestMode, diaSemana, horaActualNum, minutosActuales, horaActualString, fechasOficialesClase, colorFondo, resultDiv) {
+        if (registro.asistencias && registro.asistencias[fechaHoy]) {
+            mostrarPantalla(resultDiv, false, registro.nombre, token, `Llegada: ${registro.asistencias[fechaHoy]}`, 'clase', "var(--status-used)", "YA INGRESÓ A CLASE HOY");
+            return;
+        }
+        
+        if (!fechasOficialesClase.includes(fechaHoy)) {
+            const primeraClase = fechasOficialesClase[0];
+            const ultimaClase = fechasOficialesClase[fechasOficialesClase.length - 1];
+            let msj = "No hay clase oficial programada para esta fecha.";
+            if (fechaHoy < primeraClase) msj = "El curso aún no ha iniciado.";
+            if (fechaHoy > ultimaClase) msj = "El curso ya ha finalizado.";
+            mostrarError(`NO HAY CLASES ESTA FECHA<br><span style="font-size:0.85rem; font-weight:normal;">${msj}</span>`, token, resultDiv);
+            return;
+        }
+
+        let faltasAcumuladas = 0;
+        fechasOficialesClase.forEach(fechaClase => {
+            if (fechaClase < fechaHoy && (!registro.asistencias || !registro.asistencias[fechaClase])) {
+                faltasAcumuladas++;
+            }
+        });
+
+        let alertaAusenciasHTML = registro.tipo;
+        if (faltasAcumuladas >= 2) {
+            alertaAusenciasHTML = `${registro.tipo} <br><div style="background: rgba(218, 54, 51, 0.2); border: 1px solid rgba(218, 54, 51, 0.5); padding: 6px; border-radius: 6px; margin-top: 8px;">⚠️ Aviso: Este alumno lleva <strong>${faltasAcumuladas} faltas</strong> previas.</div>`;
+        }
+
+        if (!isTestMode) {
+            const esDomingoValido = (diaSemana === 0 && horaActualNum >= 12 && horaActualNum < 17);
+            const esMiercolesValido = (diaSemana === 3 && ((horaActualNum === 19 && minutosActuales >= 45) || horaActualNum === 20));
+            
+            if (!(esDomingoValido || esMiercolesValido)) {
+                mostrarError(`CLASE CERRADA (FUERA DE HORARIO)<br><span style="font-size:0.85rem; font-weight:normal;">Clases: Domingos 12PM-4:59PM / Miércoles 7:45PM-8:59PM.</span>`, token, resultDiv);
+                return;
+            }
+        }
+
+        db.ref(`clase/${token}/asistencias/${fechaHoy}`).set(horaActualString).then(() => {
+            mostrarPantalla(resultDiv, true, registro.nombre, token, "", 'clase', colorFondo, alertaAusenciasHTML);
+            enviarPingFeed(registro.nombre, token, registro.tipo);
+        });
     }
 
     function mostrarError(mensaje, token, div) {
