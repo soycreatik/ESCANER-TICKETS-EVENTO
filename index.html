@@ -710,16 +710,18 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
         const opcionesFecha = { timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit', day: '2-digit' };
         // Si el Modo Prueba está activo, usamos la fecha seleccionada; si no, usamos la fecha real del sistema
         const fechaHoy = (isTestMode && testDateInput) ? testDateInput : new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date()); 
-        const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
+        
+const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
         const diaSemana = fechaSV.getDay(); 
         const horaActual = fechaSV.getHours(); 
+        const minutosActuales = fechaSV.getMinutes();
         
         if (modoDetectado === 'clase') {
             // Para CLASES: El horario estricto aplica solo si NO estamos en modo prueba
             if (!isTestMode) {
-                // Domingos (0) de 13:00 a 16:59 (1 PM a 4:59 PM), o Miércoles (3) de 20:00 a 20:59
-                const esDomingoValido = (diaSemana === 0 && horaActual >= 13 && horaActual < 17);
-                const esMiercolesValido = (diaSemana === 3 && horaActual === 20);
+                // Domingos (0) de 12:00 a 16:59 (12 PM a 4:59 PM), o Miércoles (3) de 19:45 a 20:59 (7:45 PM a 8:59 PM)
+                const esDomingoValido = (diaSemana === 0 && horaActual >= 12 && horaActual < 17);
+                const esMiercolesValido = (diaSemana === 3 && ((horaActual === 19 && minutosActuales >= 45) || horaActual === 20));
                 const esDiaValido = esDomingoValido || esMiercolesValido;
                 const despuesInauguracion = fechaHoy >= "2026-09-27";
                 
@@ -728,12 +730,13 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
                     resultDiv.className = "result-box invalid";
                     resultDiv.style.backgroundColor = "var(--status-invalid)";
                     resultDiv.innerHTML = `❌ ACCESO DENEGADO (FUERA DE HORARIO)<br>
-                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">El acceso es estrictamente <strong>Domingos de 1:00 PM a 4:59 PM</strong> y <strong>Miércoles de 8:00 PM a 8:59 PM</strong>. Quien no ingrese a tiempo, queda como inasistencia.</small><br>        
+                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">El acceso es estrictamente <strong>Domingos de 12:00 PM a 4:59 PM</strong> y <strong>Miércoles de 7:45 PM a 8:59 PM</strong>. Fuera de este horario el escáner se bloquea.</small><br>        
                     <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
                     return;
                 }
             }
         } else if (modoDetectado) {
+
             // Para EVENTOS (MAHU, DREAMEZ, FESTIVAL): Siempre validamos la fecha. 
             // En modo normal usa la fecha real, en Modo Prueba usa la fecha simulada en el calendario.
             if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
@@ -815,12 +818,12 @@ if (modoDetectado === 'clase') {
             resultDiv.innerHTML = `❌ CÓDIGO NO VÁLIDO<br><small style="font-size:0.8rem; font-weight:normal;">${token}</small>`;
         }
     }
-
-    function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
+function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
         div.style.backgroundColor = colorFondo;
         
         let imagenTicketHtml = "";
         if (TICKET_IMAGES[modo]) {
+            // Aseguramos que la imagen del ticket se muestre grande y centrada para eventos
             imagenTicketHtml = `
             <div style="margin-top: 15px; text-align: center; animation: fadeIn 0.5s ease-in-out;">
                 <img src="${TICKET_IMAGES[modo]}" alt="Ticket ${tipoEvento}" 
@@ -832,7 +835,11 @@ if (modoDetectado === 'clase') {
         if (exito) {
             playFeedback('success');
             div.className = "result-box valid";
-            div.innerHTML = `✅ ACCESO CONCEDIDO<br>
+            
+            // Mensaje personalizado dependiendo de si es clase normal o un evento especial
+            let tituloAcceso = (modo === 'clase') ? "✅ ACCESO A CLASE CONCEDIDO" : `🌟 ¡BIENVENIDO A ${tipoEvento}!`;
+            
+            div.innerHTML = `<strong>${tituloAcceso}</strong><br>
             <h3 style="margin: 8px 0; color: #fff; font-size:1.4rem; text-transform: uppercase;">${nombre}</h3>
             <small style="color:rgba(255,255,255,0.9); font-size:0.9rem;">Cód: ${token}</small><br>
             <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${tipoEvento}</small>
@@ -844,6 +851,7 @@ if (modoDetectado === 'clase') {
             }, 3500);
 
         } else {
+    
             playFeedback('error');
             div.className = "result-box used";
             div.innerHTML = `⚠️ YA INGRESÓ ANTERIORMENTE<br>
@@ -962,14 +970,15 @@ function resetearCodigoManual() {
                 const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
                 const diaSemana = fechaSV.getDay(); 
                 const horaActual = fechaSV.getHours(); 
+                const minutosActuales = fechaSV.getMinutes();
                 
                 // Si NO estamos en modo prueba, restringir borrados a horas hábiles estrictas
                 if (!isTestMode) {
-                    const esDomingoValido = (diaSemana === 0 && horaActual >= 13 && horaActual < 17);
-                    const esMiercolesValido = (diaSemana === 3 && horaActual === 20);
+                    const esDomingoValido = (diaSemana === 0 && horaActual >= 12 && horaActual < 17);
+                    const esMiercolesValido = (diaSemana === 3 && ((horaActual === 19 && minutosActuales >= 45) || horaActual === 20));
                     
                     if (!esDomingoValido && !esMiercolesValido) {
-                        alert("❌ Bloqueado: No puedes anular registros fuera de los horarios de clase (Dom 1 PM - 4:59 PM / Mie 8 PM - 8:59 PM).");
+                        alert("❌ Bloqueado: No puedes anular registros fuera de los horarios de clase (Dom 12 PM - 4:59 PM / Mie 7:45 PM - 8:59 PM).");
                         return;
                     }
                 }
