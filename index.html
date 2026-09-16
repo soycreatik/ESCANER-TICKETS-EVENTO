@@ -44,12 +44,21 @@
         }
 
         .site-bg-image {
-            position: fixed; top: -5%; left: -5%; width: 110vw; height: 110vh;
-            background: url('FOTOS/759199906_122127072651351241_6293598853126747394_n.jpg') center center / cover no-repeat;
-            background-attachment: fixed;
-            filter: blur(4px) brightness(0.25) contrast(1.2); 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            /* Degradado de morados: claro, oscuro, neón */
+            background: linear-gradient(-45deg, #9333ea, #4c1d95, #c084fc, #3b0764);
+            background-size: 400% 400%;
+            animation: gradientAnim 12s ease infinite;
             z-index: -4;
         }
+
+        @keyframes gradientAnim {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }<div class="badge" id="badge-mode">Escáner Universal</div>
+        <h2>ELEGIDOS</h2>
+        <div class="subtitle" id="subtitle-mode">Clase, MAHU FILMS, DREAMEZ y FESTIVAL CREATIVO ELEGIDOS</div>
 
         .glass-reflection {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -206,8 +215,9 @@
 
     <div class="glass-card">
         <div class="badge" id="badge-mode">Escáner Universal</div>
-        <h2>ELEGIDOS</h2>
+        <img src="LOGO CURSO FOTOGRAFIA DIGITAL.png" alt="ELEGIDOS" style="max-width: 250px; height: auto; margin: 10px auto; display: block; filter: drop-shadow(0px 10px 20px rgba(0,0,0,0.6));">
         <div class="subtitle" id="subtitle-mode">Clase, MAHU FILMS, DREAMEZ y FESTIVAL CREATIVO ELEGIDOS</div>
+
         
         <div id="reader"></div>
         <div id="result" class="result-box"></div>
