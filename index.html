@@ -356,6 +356,14 @@
         festival: "2026-11-08"
     };
 
+    // CONFIGURACIÓN DE IMÁGENES DE TICKETS
+    const TICKET_IMAGES = {
+        elegidos: "ticket MAHU.jpg",
+        masterclass: "ticket DREAMEZ.jpg", 
+        festival: "ticket FESTIVAL.jpg",
+        clase: "ticket CLASE.jpg"
+    };
+
     function inicializarNubeSiEsNecesario() {
         db.ref('clase').once('value', (snapshot) => {
             if (!snapshot.exists()) {
@@ -572,8 +580,18 @@
         }
     }
 
-    function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
+function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
         div.style.backgroundColor = colorFondo;
+        
+        let imagenTicketHtml = "";
+        if (TICKET_IMAGES[modo]) {
+            imagenTicketHtml = `
+            <div style="margin-top: 15px; text-align: center; animation: fadeIn 0.5s ease-in-out;">
+                <img src="${TICKET_IMAGES[modo]}" alt="Ticket ${tipoEvento}" 
+                     style="max-width: 100%; height: auto; max-height: 220px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); object-fit: contain; border: 1px solid rgba(255,255,255,0.2);"
+                     onerror="this.style.display='none'">
+            </div>`;
+        }
         
         if (exito) {
             playFeedback('success');
@@ -581,16 +599,18 @@
             div.innerHTML = `✅ ACCESO CONCEDIDO<br>
             <h3 style="margin: 8px 0; color: #fff; font-size:1.4rem; text-transform: uppercase;">${nombre}</h3>
             <small style="color:rgba(255,255,255,0.9); font-size:0.9rem;">Cód: ${token}</small><br>
-            <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${tipoEvento}</small>`;
+            <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${tipoEvento}</small>
+            ${imagenTicketHtml}`;
         } else {
             playFeedback('error');
             div.className = "result-box used";
             div.innerHTML = `⚠️ YA INGRESÓ ANTERIORMENTE<br>
             <h3 style="margin: 8px 0; color: #fff; font-size:1.2rem;">${nombre}</h3>
             <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
-            <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${tipoEvento}</small>`;
+            <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${tipoEvento}</small>
+            ${imagenTicketHtml}`;
         }
-    }
+    }    
 
     function toggleLinterna() {
         if (!html5QrcodeScanner) return;
