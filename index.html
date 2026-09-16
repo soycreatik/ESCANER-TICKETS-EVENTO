@@ -252,10 +252,29 @@
             </div>
         </div>
 
-        <button class="btn-reset" onclick="resetearBaseDatosModo()">Reiniciar TODA la base de datos general</button>
+<button class="btn-reset" onclick="resetearBaseDatosModo()">Reiniciar TODA la base de datos general</button>
+    </div>
+
+    <!-- NUEVO: Botón para mostrar/ocultar la pestaña -->
+    <button class="pill-btn" id="btn-toggle-asistencia" onclick="toggleAsistencia()" style="margin-top: 20px; background: var(--accent-blue); color: #fff; z-index: 2;">📋 Abrir Control de Asistencia</button>
+
+    <!-- NUEVO: Panel oculto por defecto (display: none) -->
+    <div class="glass-card" id="panel-asistencia" style="display: none; margin-top: 20px; max-width: 600px; width: 100%;">
+        <h3 style="color: var(--accent-color); margin-bottom: 10px; font-size: 1.1rem; text-transform: uppercase;">Horarios y Fechas de Clases</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; text-align: center;">
+            🕒 <strong>Domingos:</strong> 1:00 PM - 1:59 PM<br>
+            🕒 <strong>Miércoles:</strong> 8:00 PM - 8:59 PM<br>
+            <em>* El escáner solo aceptará ingresos en estos bloques horarios.</em>
+        </p>
+
+        <h3 style="color: var(--accent-color); margin-bottom: 10px; border-top: 1px solid var(--card-border); padding-top: 15px; font-size: 1.1rem; text-transform: uppercase;">Control de Asistencia General</h3>
+        <div id="tabla-asistencia-alumnos" style="max-height: 300px; overflow-y: auto; text-align: left; font-size: 0.8rem; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+            Cargando listado de alumnos...
+        </div>
     </div>
 
 <script>
+
     // --- TUS CREDENCIALES DE FIREBASE ---
     const firebaseConfig = {
         apiKey: "AIzaSyAL_1473Guz-pf8_kcNtHU6iUT4e1DOlrY",
@@ -481,9 +500,101 @@
         document.getElementById("stat-elegidos").innerText = `${counts.elegidos}/${totals.elegidos} (${Math.round(counts.elegidos/totals.elegidos*100)}%)`;
         document.getElementById("stat-master").innerText = `${counts.masterclass}/${totals.masterclass} (${Math.round(counts.masterclass/totals.masterclass*100)}%)`;
         document.getElementById("stat-festival").innerText = `${counts.festival}/${totals.festival} (${Math.round(counts.festival/totals.festival*100)}%)`;
+        
+        // NUEVO: ESTA LÍNEA ES LA QUE ACTIVA LA TABLA
+        actualizarTablaAsistencia();
+    }
+
+    // NUEVO: LA FUNCIÓN QUE DIBUJA TODA LA TABLA DE ASISTENCIA
+    function actualizarTablaAsistencia() {
+        const contenedor = document.getElementById("tabla-asistencia-alumnos");
+        if (!contenedor) return;
+        
+        // Todas las fechas desde Dom 27 Sept al Dom 6 Dic
+        const fechasOficiales = [
+            "2026-09-27", "2026-09-30", "2026-10-04", "2026-10-07",
+            "2026-10-11", "2026-10-14", "2026-10-18", "2026-10-21",
+            "2026-10-25", "2026-10-28", "2026-11-01", "2026-11-04",
+            "2026-11-08", "2026-11-11", "2026-11-15", "2026-11-18",
+            "2026-11-22", "2026-11-25", "2026-11-29", "2026-12-02",
+            "2026-12-06"
+        ];
+
+        let html = '<div style="overflow-x: auto; max-width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3);">';
+        html += '<table style="width: max-content; border-collapse: collapse; background-color: #0a0a0a; color: #ffffff; font-size: 0.85rem; text-align: center;">';
+        
+        // Fila de los títulos (Nombre, Total, y Fechas)
+        html += '<tr style="background-color: #1a1a1a;">';
+        html += '<th style="padding: 12px; position: sticky; left: 0; background: #1a1a1a; z-index: 2; border: 1px solid rgba(255,255,255,0.2); color: var(--accent-gold); text-align: left; text-transform: uppercase;">Nombre del Alumno</th>';
+        html += '<th style="padding: 12px; border: 1px solid rgba(255,255,255,0.2); color: var(--accent-gold);">Tot.</th>';
+        
+        fechasOficiales.forEach(fecha => {
+            let partes = fecha.split("-");
+            let fechaCorta = `${partes[2]}/${partes[1]}`;
+            html += `<th style="padding: 10px; border: 1px solid rgba(255,255,255,0.2); color: #ccc; font-weight: normal;">${fechaCorta}</th>`;
+        });
+        html += '</tr>';
+        
+        // Construcción de la lista de los 98 alumnos
+        if (dbCache.clase) {
+            for (let i = 1; i <= 98; i++) {
+                let num = String(i).padStart(3, '0');
+                let codigo = `CLASE-2026-${num}`;
+                let alumno = dbCache.clase[codigo];
+                
+                if (alumno) {
+                    let totalAsistencias = 0;
+                    let celdasFechas = '';
+                    
+                    fechasOficiales.forEach(fecha => {
+                        if (alumno.asistencias && alumno.asistencias[fecha]) {
+                            totalAsistencias++;
+                            celdasFechas += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.1); background-color: rgba(35, 134, 54, 0.2); color: #4ade80; font-size: 1rem;">✅</td>`;
+                        } else {
+                            celdasFechas += `<td style="padding: 8px; border: 1px solid rgba(255,255,255,0.1); color: #666; font-size: 0.8rem;">-</td>`;
+                        }
+                    });
+
+                    // Fila individual de cada alumno
+                    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <td style="padding: 10px 12px; position: sticky; left: 0; background: #111; border: 1px solid rgba(255,255,255,0.1); text-align: left; white-space: nowrap; font-weight: bold; text-transform: capitalize;">${alumno.nombre.toLowerCase()}</td>
+                                <td style="padding: 10px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold; color: var(--accent-color);">${totalAsistencias}</td>
+                                ${celdasFechas}
+                             </tr>`;
+                }
+            }
+        } else {
+            html += '<tr><td colspan="23" style="padding: 20px; color: var(--accent-gold);">Cargando los datos de la base...</td></tr>';
+        }
+        
+        html += '</table></div>';
+        contenedor.innerHTML = html;
     }
 
     document.getElementById("test-mode-checkbox").addEventListener("change", actualizarEstadisticas);
+
+
+
+// NUEVA FUNCIÓN: Mostrar y ocultar la pestaña de asistencia
+    function toggleAsistencia() {
+        const panel = document.getElementById('panel-asistencia');
+        const btn = document.getElementById('btn-toggle-asistencia');
+        
+        if (panel.style.display === 'none') {
+            panel.style.display = 'block';
+            btn.innerHTML = '❌ Cerrar Control de Asistencia';
+            btn.style.background = 'var(--status-invalid)'; // Se pone rojo para indicar "cerrar"
+            
+            // Opcional: Hacer scroll suave hacia abajo para ver la lista completa
+            setTimeout(() => {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        } else {
+            panel.style.display = 'none';
+            btn.innerHTML = '📋 Abrir Control de Asistencia';
+            btn.style.background = 'var(--accent-blue)'; // Vuelve a color azul
+        }
+    }
 
     function actualizarDatalist() {
         const datalist = document.getElementById('lista-asistentes');
@@ -548,12 +659,14 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
         // configuración de fecha y hora exacta 
         const opcionesFecha = { timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit', day: '2-digit' };
         const fechaHoy = new Intl.DateTimeFormat('en-CA', opcionesFecha).format(new Date()); 
-        const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
+const fechaSV = new Date(new Date().toLocaleString("en-US", {timeZone: "America/El_Salvador"}));
         const diaSemana = fechaSV.getDay(); 
+        const horaActual = fechaSV.getHours(); // Extraemos la hora actual
         
         if (!isTestMode) {
             if (modoDetectado === 'clase') {
-                const esDiaValido = (diaSemana === 0 || diaSemana === 3);
+                // Validación estricta: Domingo (0) a la 1 PM (13) o Miércoles (3) a las 8 PM (20)
+                const esDiaValido = (diaSemana === 0 && horaActual === 13) || (diaSemana === 3 && horaActual === 20);
                 const despuesInauguracion = fechaHoy >= "2026-09-27";
                 
                 if (!esDiaValido || !despuesInauguracion) {
@@ -561,7 +674,8 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
                     resultDiv.className = "result-box invalid";
                     resultDiv.style.backgroundColor = "var(--status-invalid)";
                     resultDiv.innerHTML = `❌ ACCESO DENEGADO<br>
-                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">las clases inician el 27 de sept. y el acceso es solo <strong>miércoles y domingos</strong>.</small><br>
+                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">El acceso es solo <strong>Domingos de 1:00 PM a 1:59 PM</strong> y <strong>Miércoles de 8:00 PM a 8:59 PM</strong>.</small><br>        
+
                     <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
                     return;
                 }
