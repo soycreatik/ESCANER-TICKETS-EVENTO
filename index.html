@@ -692,41 +692,42 @@ const isTestMode = document.getElementById("test-mode-checkbox").checked;
         const diaSemana = fechaSV.getDay(); 
         const horaActual = fechaSV.getHours(); 
         
-        // Las validaciones de horario solo aplican si NO estamos en Modo Prueba
-        if (!isTestMode) {
-            if (modoDetectado === 'clase') {
-                // Validación estricta: Domingos (0) de 13:00 a 17:59, o Miércoles (3) de 20:00 a 20:59
-                const esDomingoValido = (diaSemana === 0 && horaActual >= 13 && horaActual < 18);
+        if (modoDetectado === 'clase') {
+            // Para CLASES: El horario estricto aplica solo si NO estamos en modo prueba
+            if (!isTestMode) {
+                // Domingos (0) de 13:00 a 16:59 (1 PM a 4:59 PM), o Miércoles (3) de 20:00 a 20:59
+                const esDomingoValido = (diaSemana === 0 && horaActual >= 13 && horaActual < 17);
                 const esMiercolesValido = (diaSemana === 3 && horaActual === 20);
                 const esDiaValido = esDomingoValido || esMiercolesValido;
-                
                 const despuesInauguracion = fechaHoy >= "2026-09-27";
                 
                 if (!esDiaValido || !despuesInauguracion) {
                     playFeedback('error');
                     resultDiv.className = "result-box invalid";
                     resultDiv.style.backgroundColor = "var(--status-invalid)";
-                    resultDiv.innerHTML = `❌ ACCESO DENEGADO<br>
-                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">El acceso es solo <strong>Domingos de 1:00 PM a 5:59 PM</strong> y <strong>Miércoles de 8:00 PM a 8:59 PM</strong>.</small><br>        
-
-                    <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
-                    return;
-                }
-            } else if (modoDetectado) {
-
-
-                if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
-                    playFeedback('error');
-                    resultDiv.className = "result-box invalid";
-                    resultDiv.style.backgroundColor = "var(--status-invalid)";
-                    resultDiv.innerHTML = `❌ ACCESO DENEGADO<br>
-                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">este código es válido únicamente el día:</small>
-                    <strong style="font-size:1rem;">${FECHAS_PERMITIDAS[modoDetectado]}</strong><br>
+                    resultDiv.innerHTML = `❌ ACCESO DENEGADO (FUERA DE HORARIO)<br>
+                    <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">El acceso es estrictamente <strong>Domingos de 1:00 PM a 4:59 PM</strong> y <strong>Miércoles de 8:00 PM a 8:59 PM</strong>. Quien no ingrese a tiempo, queda como inasistencia.</small><br>        
                     <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
                     return;
                 }
             }
-        }        
+        } else if (modoDetectado) {
+            // Para EVENTOS (MAHU, DREAMEZ, FESTIVAL): Siempre validamos la fecha. 
+            // En modo normal usa la fecha real, en Modo Prueba usa la fecha simulada en el calendario.
+            if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
+                const isPast = fechaHoy > FECHAS_PERMITIDAS[modoDetectado];
+                const mensajeTiempo = isPast ? "Este evento ya pasó y el código expiró." : "Aún no es la fecha de este evento.";
+                
+                playFeedback('error');
+                resultDiv.className = "result-box invalid";
+                resultDiv.style.backgroundColor = "var(--status-invalid)";
+                resultDiv.innerHTML = `❌ ACCESO DENEGADO<br>
+                <small style="font-size:0.85rem; font-weight:normal; display:block; margin-top:8px;">${mensajeTiempo} Fecha válida:</small>
+                <strong style="font-size:1rem;">${FECHAS_PERMITIDAS[modoDetectado]}</strong><br>
+                <small style="font-size:0.75rem; color:rgba(255,255,255,0.7);">${token}</small>`;
+                return;
+            }
+        }    
 
         if (modoDetectado && dbCache[modoDetectado] && dbCache[modoDetectado][token]) {
             let registro = dbCache[modoDetectado][token];
@@ -899,13 +900,13 @@ function resetearCodigoManual() {
                 const diaSemana = fechaSV.getDay(); 
                 const horaActual = fechaSV.getHours(); 
                 
-                // Si NO estamos en modo prueba, restringir borrados a horas hábiles
+                // Si NO estamos en modo prueba, restringir borrados a horas hábiles estrictas
                 if (!isTestMode) {
-                    const esDomingoValido = (diaSemana === 0 && horaActual >= 13 && horaActual < 18);
+                    const esDomingoValido = (diaSemana === 0 && horaActual >= 13 && horaActual < 17);
                     const esMiercolesValido = (diaSemana === 3 && horaActual === 20);
                     
                     if (!esDomingoValido && !esMiercolesValido) {
-                        alert("❌ No puedes anular un registro fuera de los horarios de clase permitidos.");
+                        alert("❌ Bloqueado: No puedes anular registros fuera de los horarios de clase (Dom 1 PM - 4:59 PM / Mie 8 PM - 8:59 PM).");
                         return;
                     }
                 }
