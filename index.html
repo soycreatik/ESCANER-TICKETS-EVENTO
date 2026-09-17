@@ -141,7 +141,6 @@
 </head>
 <body>
 
-    
     <div class="connection-indicator" id="connection-indicator">🟠 CONECTANDO...</div>
 
     <div class="stats-panel" id="stats-panel-container">
@@ -211,12 +210,10 @@
             </div>
         </div>
         
-        
-<!-- BOTONES DE ADMINISTRACIÓN (Mantenidos dentro de la tarjeta principal) -->
         <div style="text-align: center; margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
             <button class="pill-btn" id="btn-toggle-asistencia" onclick="toggleAsistencia()" style="background: var(--accent-blue); color: #fff; z-index: 2;">📋 Abrir Control de Asistencia</button>
         </div>
-    </div> <!-- Cierre de la glass-card principal del validador -->
+    </div>
 
     <!-- PANEL DE ASISTENCIA OCULTO -->
     <div class="glass-card" id="panel-asistencia" style="display: none; margin-top: 20px; max-width: 600px; width: 100%;">
@@ -234,7 +231,6 @@
     </div>
 
 <script>
-    // --- TUS CREDENCIALES DE FIREBASE ---
     const firebaseConfig = {
         apiKey: "AIzaSyAL_1473Guz-pf8_kcNtHU6iUT4e1DOlrY",
         authDomain: "elegidosvalidador.firebaseapp.com",
@@ -606,11 +602,10 @@
 
     function onScanSuccess(decodedText) {
         if (isScanning) return; 
-        isScanning = true; // Bloqueamos nuevas lecturas instantáneamente
+        isScanning = true;
 
         if (autoResetTimer) { clearTimeout(autoResetTimer); autoResetTimer = null; }
 
-        // Ocultamos la linterna pero NO pausamos la cámara para evitar que el celular se congele
         document.getElementById('btn-linterna').style.display = 'none';
 
         const resultDiv = document.getElementById('result');
@@ -663,15 +658,13 @@
                 if (!snap.exists()) { mostrarError("Código de estudiante no existe.", token, resultDiv); return; }
                 const registro = snap.val();
 
-               // Validación Unificada: ¿Es día de Evento Especial o de Clase?
+                // Validación Unificada: ¿Es día de Evento Especial o de Clase?
                 if (eventoEspecialDelDia) {
-                    // 1. Verificamos si YA INGRESÓ al evento
                     if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
                         mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
                         return;
                     } 
                     
-                    // 2. Revisamos si tiene un boleto físico vinculado para quemarlo simultáneamente
                     let ticketVinculado = null;
                     if (registro.boletos) {
                         for (let [codigoBoleto, evt] of Object.entries(registro.boletos)) {
@@ -679,7 +672,6 @@
                         }
                     }
                     
-                    // 3. Registramos la asistencia al evento SÍ O SÍ (Tenga el boleto vinculado o lo lleve en mano)
                     const updates = {};
                     updates[`clase/${token}/asistencias/evento_${eventoEspecialDelDia}`] = horaActualString;
                     if (ticketVinculado) {
@@ -692,32 +684,13 @@
                         mostrarPantalla(resultDiv, true, registro.nombre, token, "", eventoEspecialDelDia, "var(--accent-gold)", etiquetaAcceso);
                         enviarPingFeed(registro.nombre, token, `Ingreso Evento`);
                     });
-                }
-                        
-                        const updates = {};
-                        updates[`clase/${token}/asistencias/evento_${eventoEspecialDelDia}`] = horaActualString;
-                        if (ticketVinculado) {
-                            updates[`${eventoEspecialDelDia}/${ticketVinculado}/usado`] = true;
-                            updates[`${eventoEspecialDelDia}/${ticketVinculado}/fechaIngreso`] = horaActualString;
-                        }
-
-                        db.ref().update(updates).then(() => {
-                            mostrarPantalla(resultDiv, true, registro.nombre, token, "", eventoEspecialDelDia, "var(--accent-gold)", `VIP - ${eventoEspecialDelDia.toUpperCase()}`);
-                            enviarPingFeed(registro.nombre, token, `Ingreso Vinculado`);
-                        });
-                    } else {
-                        // Si es día de evento pero no tiene boleto asignado, y quiere entrar a clase normal:
-                        procesarAsistenciaClase(token, registro, fechaHoy, isTestMode, diaSemana, horaActualNum, minutosActuales, horaActualString, fechasOficialesClase, colorFondo, resultDiv);
-                    }
-                } 
-                else {
+                } else {
                     // Si NO es día de evento especial, procesar como clase normal
                     procesarAsistenciaClase(token, registro, fechaHoy, isTestMode, diaSemana, horaActualNum, minutosActuales, horaActualString, fechasOficialesClase, colorFondo, resultDiv);
                 }
             });
         } 
         else if (modoDetectado) {
-            // Lógica para escaneo directo de boleto de evento
             db.ref(`${modoDetectado}/${token}`).once('value').then(snap => {
                 if (!snap.exists()) { mostrarError("BOLETO NO EXISTE", token, resultDiv); return; }
                 const registroBoleto = snap.val();
@@ -761,7 +734,6 @@
         }
     }
 
-    // Función auxiliar para procesar la asistencia a clase
     function procesarAsistenciaClase(token, registro, fechaHoy, isTestMode, diaSemana, horaActualNum, minutosActuales, horaActualString, fechasOficialesClase, colorFondo, resultDiv) {
         if (registro.asistencias && registro.asistencias[fechaHoy]) {
             mostrarPantalla(resultDiv, false, registro.nombre, token, `Llegada: ${registro.asistencias[fechaHoy]}`, 'clase', "var(--status-used)", "YA INGRESÓ A CLASE HOY");
@@ -814,7 +786,7 @@
         
         autoResetTimer = setTimeout(() => {
             reiniciarEscaner();
-        }, 2500); // 2.5 Segundos de auto-reset en errores
+        }, 2500);
     }
 
     function mostrarPantalla(div, exito, nombre, token, infoExtra, modo, colorFondo, tipoEvento) {
@@ -842,7 +814,6 @@
             <small style="color:rgba(255,255,255,0.9); font-size:0.8rem; font-weight:normal;">Sección: ${tipoEvento}</small>
             ${imagenTicketHtml}`;
             
-            // Auto-Reset Automático: Solo si fue exitoso, se reinicia a los 2.5 segundos
             autoResetTimer = setTimeout(() => {
                 reiniciarEscaner();
             }, 2500);
@@ -855,7 +826,6 @@
             <small style="color:rgba(255,255,255,0.7); font-size:0.8rem;">(${token})</small><br>
             <small style="font-size:0.75rem; font-weight:normal;">${infoExtra} | ${tipoEvento}</small>`;
             
-            // Auto-Reset Automático también para tickets ya usados (Mantiene el flujo de fila ágil)
             autoResetTimer = setTimeout(() => {
                 reiniciarEscaner();
             }, 2500);
@@ -886,21 +856,17 @@
                 let size = Math.floor(minEdge * 0.75);
                 return { width: size, height: size };
             }
-            // Se elimina aspectRatio: 1.0 para mantener la proporción nativa y evitar deformación del lente
         };
 
         if(!html5QrcodeScanner) {
             html5QrcodeScanner = new Html5Qrcode("reader");
         }
 
-        // Delegar la selección nativa al dispositivo garantiza usar el lente principal con autoenfoque real
         arrancarCamaraInteligente({ facingMode: "environment" }, config);
     }
 
     function arrancarCamaraInteligente(cameraParams, config) {
-        // Añadir una función vacía como callback de error (tercer parámetro) evita excepciones que saturan el navegador
         html5QrcodeScanner.start(cameraParams, config, onScanSuccess, (errorMessage) => { 
-            // Se ignoran los errores de fotogramas vacíos para una lectura instantánea
         })
         .then(() => {
             document.getElementById('btn-linterna').style.display = 'block';
@@ -909,7 +875,6 @@
             scanModeTorchOn = false;
         }).catch(err => {
             console.warn("No se pudo iniciar con cámara trasera, buscando alternativa para PC...", err);
-            // Fallback directo a cualquier cámara disponible (útil para PC/Webcam)
             Html5Qrcode.getCameras().then(devices => {
                 if (devices && devices.length > 0) {
                     html5QrcodeScanner.start(devices[0].id, config, onScanSuccess, () => {}).catch(e => console.error("Error en cámara secundaria:", e));
@@ -927,13 +892,11 @@
         document.getElementById('result').style.display = 'none';
         document.getElementById('reader').style.display = 'block';
         
-        // Liberamos el lector para el siguiente ticket instantáneamente
         setTimeout(() => { isScanning = false; }, 100);
         
         if (html5QrcodeScanner) {
             document.getElementById('btn-linterna').style.display = 'block';
-            // Solo reiniciamos la cámara si por algún motivo se desconectó
-            if (html5QrcodeScanner.getState() !== 2 /* SCANNING */) {
+            if (html5QrcodeScanner.getState() !== 2) {
                 inicializarEscaner();
             }
         }
@@ -973,8 +936,6 @@
         
         selector.value = ""; 
     }
-
-    
 
     window.onload = () => {
         inicializarNubeSiEsNecesario();
