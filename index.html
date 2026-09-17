@@ -606,14 +606,12 @@
 
     function onScanSuccess(decodedText) {
         if (isScanning) return; 
-        isScanning = true;
+        isScanning = true; // Bloqueamos nuevas lecturas instantáneamente
 
         if (autoResetTimer) { clearTimeout(autoResetTimer); autoResetTimer = null; }
 
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.pause(true); 
-            document.getElementById('btn-linterna').style.display = 'none';
-        }
+        // Ocultamos la linterna pero NO pausamos la cámara para evitar que el celular se congele
+        document.getElementById('btn-linterna').style.display = 'none';
 
         const resultDiv = document.getElementById('result');
         resultDiv.style.display = 'block';
@@ -880,83 +878,64 @@
         });
     }
 
-    function inicializarEscaner() {
+   function inicializarEscaner() {
         const config = { 
-            fps: 10, 
-            qrbox: { width: 250, height: 250 }
+            fps: 15, 
+            qrbox: function(viewfinderWidth, viewfinderHeight) {
+                let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                let size = Math.floor(minEdge * 0.75);
+                return { width: size, height: size };
+            }
+            // Se elimina aspectRatio: 1.0 para mantener la proporción nativa y evitar deformación del lente
         };
 
         if(!html5QrcodeScanner) {
             html5QrcodeScanner = new Html5Qrcode("reader");
         }
 
-        Html5Qrcode.getCameras().then(devices => {
-            if (devices && devices.length) {
-                let camId = devices[0].id;
-                
-                let backCams = devices.filter(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('trasera') || c.label.toLowerCase().includes('posterior'));
-                
-                if (backCams.length > 0) {
-                    let mainBack = backCams.find(c => !c.label.toLowerCase().includes('ultra') && !c.label.toLowerCase().includes('wide') && !c.label.toLowerCase().includes('angular') && !c.label.toLowerCase().includes('gran') && !c.label.toLowerCase().includes('macro'));
-                    
-                    camId = mainBack ? mainBack.id : backCams[0].id; 
-                } else if (devices.length > 1) {
-                    camId = devices[devices.length - 1].id;
-                }
-
-                iniciarConCamara(camId, config);
-            } else {
-                iniciarConCamara({ facingMode: "environment" }, config);
-            }
-        }).catch(err => {
-            console.log("Error al listar cámaras: ", err);
-            iniciarConCamara({ facingMode: "environment" }, config);
-        });
+        // Delegar la selección nativa al dispositivo garantiza usar el lente principal con autoenfoque real
+        arrancarCamaraInteligente({ facingMode: "environment" }, config);
     }
 
-    function iniciarConCamara(cameraParams, config) {
-        html5QrcodeScanner.start(cameraParams, config, onScanSuccess)
+    function arrancarCamaraInteligente(cameraParams, config) {
+        // Añadir una función vacía como callback de error (tercer parámetro) evita excepciones que saturan el navegador
+        html5QrcodeScanner.start(cameraParams, config, onScanSuccess, (errorMessage) => { 
+            // Se ignoran los errores de fotogramas vacíos para una lectura instantánea
+        })
         .then(() => {
             document.getElementById('btn-linterna').style.display = 'block';
             document.getElementById('btn-linterna').style.background = 'transparent';
             document.getElementById('btn-linterna').style.color = 'var(--accent-color)';
             scanModeTorchOn = false;
         }).catch(err => {
-            console.log("Error al iniciar cámara principal: ", err);
-            if (cameraParams !== undefined && cameraParams.facingMode === undefined) {
-                html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess).catch(e => console.log(e));
-            }
+            console.warn("No se pudo iniciar con cámara trasera, buscando alternativa para PC...", err);
+            // Fallback directo a cualquier cámara disponible (útil para PC/Webcam)
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length > 0) {
+                    html5QrcodeScanner.start(devices[0].id, config, onScanSuccess, () => {}).catch(e => console.error("Error en cámara secundaria:", e));
+                }
+            });
         });
     }
 
-    // --- ESTA ES LA FUNCIÓN VITAL QUE FALTABA PARA QUE NO SE TRABE EL ESCÁNER ---
     function reiniciarEscaner() {
-        // Matamos el temporizador si presionas el botón manualmente para no esperar
         if (autoResetTimer) { 
             clearTimeout(autoResetTimer); 
             autoResetTimer = null; 
         }
         
-        isScanning = false;
         document.getElementById('result').style.display = 'none';
         document.getElementById('reader').style.display = 'block';
         
-        // Descongelamos la cámara de forma segura
+        // Liberamos el lector para el siguiente ticket instantáneamente
+        setTimeout(() => { isScanning = false; }, 100);
+        
         if (html5QrcodeScanner) {
-            try {
-                if (html5QrcodeScanner.getState() === 3 /* PAUSED */) {
-                    html5QrcodeScanner.resume();
-                    document.getElementById('btn-linterna').style.display = 'block';
-                } else if (html5QrcodeScanner.getState() !== 2 /* SCANNING */) {
-                    html5QrcodeScanner.clear().catch(e => console.log(e));
-                    setTimeout(() => inicializarEscaner(), 200);
-                }
-            } catch(e) {
-                console.log("Error al reanudar cámara:", e);
+            document.getElementById('btn-linterna').style.display = 'block';
+            // Solo reiniciamos la cámara si por algún motivo se desconectó
+            if (html5QrcodeScanner.getState() !== 2 /* SCANNING */) {
                 inicializarEscaner();
             }
-        } else {
-            inicializarEscaner();
         }
     }
 
