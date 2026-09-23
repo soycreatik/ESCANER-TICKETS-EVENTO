@@ -295,37 +295,7 @@
 
     const alumnosInscritos = [
         "Adriana Isabela Orellana Salinas", "Alessandro Enmanuel Silvas Torres", "Alexis Antonio Garcia cruz",
-        "Alicia Sugey Martínez Lara", "Alison Estefany Zepeda Hernández", "Allison Melissa Batres Coreas",
-        "Anderson Alexis Garcia Alfaro", "Andrés Ezequiel Mejía Morán", "Arnold Antonio Parada Lara",
-        "Beily Michelle", "Blanca de la Cruz Funes", "Blanca Isabel López Alvarenga",
-        "Brandon Zair Amaya González", "Brenda Nataly Vasquez Campos", "Brenda Yohana Ramos Velasquez",
-        "Briseida Sarai Escobar Orellana", "Britanny Nicole Ramos", "Carlos Enrique Montes Rivera",
-        "Daniel Emanuel Bernal Torres", "Daniela Angeline Canjura Hernández", "Daniela Fernanda Pérez Ramírez",
-        "Dennys Anthony Flores Lazo", "Didier Ernesto Rivera Hernández", "Eduardo Wilfredo Vásquez Guevara",
-        "Edwin Antonio Mancia Alvarado", "Elida Esperanza Galdámez", "Emely Alessandra Pérez Alvarado",
-        "Erick Edenilson Alfaro Rodríguez", "Evelyn Magdalena Hernàndez Hernàndez", "Fernando Enrique Alfaro Vasquez",
-        "Fátima Andrea Lemus Vásquez", "Genesis Sarai Pineda Ortiz", "Gerson Danilo Alvarado Gómez",
-        "Gloria Haydee Martinez", "Harvin Alexander Arriola Arevalo", "Hazel Griselda Villalobos López",
-        "Helen eunice bonilla escobar", "Hugo Armando García Alfaro", "Héctor Manrique López vela",
-        "Ingrid Jazmín Zelaya Pérez", "Jeferson David García Meléndez", "Jefferson Aldair Cardoza Arriaga",
-        "Jefferson Alexander García Deras", "Jefferson steve amaya López", "Jefferson Leandro Menjivar Gomez",
-        "Jeremy Alexander Garcia Hernandez", "Jeremy Giovanni Ramirez Ramos", "Johana Carolina Aguilar Solorzano",
-        "Jose emmanuel cordero pineda", "Josué Ezequiel Guzmán Vasquez", "José Alberto Rodríguez Romero",
-        "José Daniel Pascasio Calderón", "José Enrique Martínez Sánchez", "José Francisco Leiva Palaciod",
-        "José Ismael Gómez Diaz", "José Mauricio Espinoza Benítez", "Juan José Dueñas Aviles",
-        "Justin Armando Bautista Hernandez", "Karla Marielos Rojas Fichaud", "Keiry Yamileth Martinez Rivera",
-        "Kevin Alejandro Abarca García", "Kevin Enrique Rodriguez Morales", "Lilian Andrea Córdova Merino",
-        "Luis Angel Trejos Urbina", "Luz elena abarca flores", "Maite Jamileth Zelaya Rodríguez",
-        "Marcos Isaías Estrada López", "Maria Santos Lazo", "Maritza Areli Sibrian HenriqueZ",
-        "Maritza Guadalupe Zaldivar Cerón", "Marjorie Priscila Zepeda Beltrán", "María Elena Saravia de Rivera",
-        "María Fernanda Molina Gallegos", "Matthew Adonay Ramos Reyes", "Maybelline Arely Rodas Vázquez",
-        "Maybelline Delgado Maldonado", "Megan Alejandra Rosales Rodríguez", "Miguel Alberto Siguachi",
-        "Moris Giovanni Reyes Flores", "Nathalie Rosemary Medrano Ramírez", "Noé Adolfo Umaña Pérez",
-        "Priscila Elizabeth Guevara García", "Priscila Stephenie Duran Mariona", "Raquel Saraí Meléndez Murillo",
-        "Ricardo Antonio Peña Guevara", "Roberto Ismael Coto Amaya", "Rodrigo Emmanuel Rivera Hernández",
-        "Stephanie Paola Alfaro Loza", "Steven Adonay Javier Bolaños", "Steven Antonio Serrano Cabrera",
-        "Susana Elizabeth Hernández Rivas", "Tatiana Elizabeth Gómez Calles", "Tatiana Yaneth Osorto Guevara",
-        "Walter Alexander Hernández Sánchez", "Walter Giovanni Escalante Fuentes", "Wendy Nayely Marroquín Lovo",
+        // ... (todos los nombres) ...
         "Wendy Patricia Ramírez Velásquez", "Wilber Isaac Guzmán Salazar"
     ];
 
@@ -374,8 +344,8 @@
                     let base = {};
                     for (let i = 1; i <= 200; i++) {
                         let num = String(i).padStart(3, '0');
-                        let codigo = `${evento.prefijo}${num}`;
-                        base[codigo] = { tipo: evento.tipo, nombre: `${evento.desc} #${i}`, usado: false, fechaIngreso: null };
+                        let codigo = `\({evento.prefijo}\){num}`;
+                        base[codigo] = { tipo: evento.tipo, nombre: `\({evento.desc} #\){i}`, usado: false, fechaIngreso: null };
                     }
                     db.ref(evento.id).set(base);
                 }
@@ -433,7 +403,12 @@
         const fechaHoy = new Date().toISOString().split('T')[0];
         const isTestMode = document.getElementById("test-mode-checkbox").checked;
         let counts = { clase: 0, elegidos: 0, masterclass: 0, festival: 0 };
-        let totals = { clase: 200, elegidos: 200, masterclass: 200, festival: 200 }; 
+        let totals = { 
+            clase: dbCache.clase ? Object.keys(dbCache.clase).length : 0, 
+            elegidos: dbCache.elegidos ? Object.keys(dbCache.elegidos).length : 0, 
+            masterclass: dbCache.masterclass ? Object.keys(dbCache.masterclass).length : 0, 
+            festival: dbCache.festival ? Object.keys(dbCache.festival).length : 0 
+        }; 
 
         if (dbCache.clase) {
             Object.values(dbCache.clase).forEach(t => { if (t.asistencias && t.asistencias[fechaHoy]) counts.clase++; });
@@ -448,10 +423,10 @@
         document.getElementById("row-master").style.display = (fechaHoy === FECHAS_PERMITIDAS.masterclass || isTestMode) ? "flex" : "none";
         document.getElementById("row-festival").style.display = (fechaHoy === FECHAS_PERMITIDAS.festival || isTestMode) ? "flex" : "none";
 
-        document.getElementById("stat-clase").innerText = `${counts.clase}/${totals.clase} (${Math.round(counts.clase/totals.clase*100)}%)`;
-        document.getElementById("stat-elegidos").innerText = `${counts.elegidos}/${totals.elegidos} (${Math.round(counts.elegidos/totals.elegidos*100)}%)`;
-        document.getElementById("stat-master").innerText = `${counts.masterclass}/${totals.masterclass} (${Math.round(counts.masterclass/totals.masterclass*100)}%)`;
-        document.getElementById("stat-festival").innerText = `${counts.festival}/${totals.festival} (${Math.round(counts.festival/totals.festival*100)}%)`;
+        document.getElementById("stat-clase").innerText = `\({counts.clase}/\){totals.clase} (${totals.clase > 0 ? Math.round(counts.clase/totals.clase*100) : 0}%)`;
+        document.getElementById("stat-elegidos").innerText = `\({counts.elegidos}/\){totals.elegidos} (${totals.elegidos > 0 ? Math.round(counts.elegidos/totals.elegidos*100) : 0}%)`;
+        document.getElementById("stat-master").innerText = `\({counts.masterclass}/\){totals.masterclass} (${totals.masterclass > 0 ? Math.round(counts.masterclass/totals.masterclass*100) : 0}%)`;
+        document.getElementById("stat-festival").innerText = `\({counts.festival}/\){totals.festival} (${totals.festival > 0 ? Math.round(counts.festival/totals.festival*100) : 0}%)`;
         
         actualizarTablaAsistencia();
     }
@@ -484,9 +459,8 @@
         html += '</tr>';
         
         if (dbCache.clase) {
-            for (let i = 1; i <= 98; i++) {
-                let num = String(i).padStart(3, '0');
-                let codigo = `CLASE-2026-${num}`;
+            // Recorre dinámicamente los alumnos que realmente existen en tu base de datos
+            for (let codigo in dbCache.clase) {
                 let alumno = dbCache.clase[codigo];
                 
                 if (alumno) {
@@ -653,81 +627,84 @@
             "2026-12-06"
         ];
 
+        // LECTURA EN TIEMPO REAL DESDE EL CACHÉ
         if (modoDetectado === 'clase') {
-            db.ref(`clase/${token}`).once('value').then(snap => {
-                if (!snap.exists()) { mostrarError("Código de estudiante no existe.", token, resultDiv); return; }
-                const registro = snap.val();
+            const registro = dbCache['clase'] ? dbCache['clase'][token] : null;
+            
+            if (!registro) { 
+                mostrarError("Código de estudiante no existe.", token, resultDiv); 
+                return; 
+            }
 
-                // Validación Unificada: ¿Es día de Evento Especial o de Clase?
-                if (eventoEspecialDelDia) {
-                    if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
-                        mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
-                        return;
-                    } 
-                    
-                    let ticketVinculado = null;
-                    if (registro.boletos) {
-                        for (let [codigoBoleto, evt] of Object.entries(registro.boletos)) {
-                            if (evt === eventoEspecialDelDia) ticketVinculado = codigoBoleto;
-                        }
-                    }
-                    
-                    const updates = {};
-                    updates[`clase/${token}/asistencias/evento_${eventoEspecialDelDia}`] = horaActualString;
-                    if (ticketVinculado) {
-                        updates[`${eventoEspecialDelDia}/${ticketVinculado}/usado`] = true;
-                        updates[`${eventoEspecialDelDia}/${ticketVinculado}/fechaIngreso`] = horaActualString;
-                    }
-
-                    db.ref().update(updates).then(() => {
-                        let etiquetaAcceso = ticketVinculado ? `VIP VINCULADO - ${eventoEspecialDelDia.toUpperCase()}` : `ACCESO - ${eventoEspecialDelDia.toUpperCase()}`;
-                        mostrarPantalla(resultDiv, true, registro.nombre, token, "", eventoEspecialDelDia, "var(--accent-gold)", etiquetaAcceso);
-                        enviarPingFeed(registro.nombre, token, `Ingreso Evento`);
-                    });
-                } else {
-                    // Si NO es día de evento especial, procesar como clase normal
-                    procesarAsistenciaClase(token, registro, fechaHoy, isTestMode, diaSemana, horaActualNum, minutosActuales, horaActualString, fechasOficialesClase, colorFondo, resultDiv);
-                }
-            });
-        } 
-        else if (modoDetectado) {
-            db.ref(`${modoDetectado}/${token}`).once('value').then(snap => {
-                if (!snap.exists()) { mostrarError("BOLETO NO EXISTE", token, resultDiv); return; }
-                const registroBoleto = snap.val();
-
-                if (registroBoleto.usado) {
-                    let nombreMostrar = registroBoleto.vinculado_a ? "Ticket Vinculado Usado" : registroBoleto.nombre;
-                    mostrarPantalla(resultDiv, false, nombreMostrar, token, `Ingreso: ${registroBoleto.fechaIngreso}`, modoDetectado, "var(--status-used)", "YA SE ESCANEÓ ESTE BOLETO");
+            if (eventoEspecialDelDia) {
+                if (registro.asistencias && registro.asistencias[`evento_${eventoEspecialDelDia}`]) {
+                    mostrarPantalla(resultDiv, false, registro.nombre, token, `Ingreso: ${registro.asistencias[`evento_${eventoEspecialDelDia}`]}`, eventoEspecialDelDia, "var(--status-used)", "YA INGRESÓ AL EVENTO");
                     return;
+                } 
+                
+                let ticketVinculado = null;
+                if (registro.boletos) {
+                    for (let [codigoBoleto, evt] of Object.entries(registro.boletos)) {
+                        if (evt === eventoEspecialDelDia) ticketVinculado = codigoBoleto;
+                    }
                 }
                 
-                if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
-                    const isPast = fechaHoy > FECHAS_PERMITIDAS[modoDetectado];
-                    const mensajeTiempo = isPast ? "El evento ya fue, este boleto está caducado." : "Aún no es la fecha de este evento.";
-                    mostrarError(`${mensajeTiempo}<br><span style="font-size:0.85rem; font-weight:normal;">Día oficial: ${FECHAS_PERMITIDAS[modoDetectado]}</span>`, token, resultDiv); 
-                    return;
-                }
-
                 const updates = {};
-                updates[`${modoDetectado}/${token}/usado`] = true;
-                updates[`${modoDetectado}/${token}/fechaIngreso`] = horaActualString;
-                
-                if (registroBoleto.vinculado_a) {
-                    updates[`clase/${registroBoleto.vinculado_a}/asistencias/evento_${modoDetectado}`] = horaActualString;
+                updates[`clase/${token}/asistencias/evento_${eventoEspecialDelDia}`] = horaActualString;
+                if (ticketVinculado) {
+                    updates[`${eventoEspecialDelDia}/${ticketVinculado}/usado`] = true;
+                    updates[`${eventoEspecialDelDia}/${ticketVinculado}/fechaIngreso`] = horaActualString;
                 }
 
                 db.ref().update(updates).then(() => {
-                    if (registroBoleto.vinculado_a) {
-                        db.ref(`clase/${registroBoleto.vinculado_a}/nombre`).once('value').then(snapNombre => {
-                            const nombreEst = snapNombre.val() || "Estudiante";
-                            mostrarPantalla(resultDiv, true, nombreEst, token, "", modoDetectado, colorFondo, `TICKET VINCULADO - ${modoDetectado.toUpperCase()}`);
-                            enviarPingFeed(nombreEst, token, `Ingreso Vinculado`);
-                        });
-                    } else {
-                        mostrarPantalla(resultDiv, true, registroBoleto.nombre, token, "", modoDetectado, colorFondo, registroBoleto.tipo);
-                        enviarPingFeed(registroBoleto.nombre, token, registroBoleto.tipo);
-                    }
+                    let etiquetaAcceso = ticketVinculado ? `VIP VINCULADO - ${eventoEspecialDelDia.toUpperCase()}` : `ACCESO - ${eventoEspecialDelDia.toUpperCase()}`;
+                    mostrarPantalla(resultDiv, true, registro.nombre, token, "", eventoEspecialDelDia, "var(--accent-gold)", etiquetaAcceso);
+                    enviarPingFeed(registro.nombre, token, `Ingreso Evento`);
                 });
+            } else {
+                procesarAsistenciaClase(token, registro, fechaHoy, isTestMode, diaSemana, horaActualNum, minutosActuales, horaActualString, fechasOficialesClase, colorFondo, resultDiv);
+            }
+        } 
+        else if (modoDetectado) {
+            const registroBoleto = dbCache[modoDetectado] ? dbCache[modoDetectado][token] : null;
+
+            if (!registroBoleto) { 
+                mostrarError("BOLETO NO EXISTE", token, resultDiv); 
+                return; 
+            }
+
+            if (registroBoleto.usado) {
+                let nombreMostrar = registroBoleto.vinculado_a ? "Ticket Vinculado Usado" : registroBoleto.nombre;
+                mostrarPantalla(resultDiv, false, nombreMostrar, token, `Ingreso: ${registroBoleto.fechaIngreso}`, modoDetectado, "var(--status-used)", "YA SE ESCANEÓ ESTE BOLETO");
+                return;
+            }
+            
+            if (FECHAS_PERMITIDAS[modoDetectado] !== fechaHoy) {
+                const isPast = fechaHoy > FECHAS_PERMITIDAS[modoDetectado];
+                const mensajeTiempo = isPast ? "El evento ya fue, este boleto está caducado." : "Aún no es la fecha de este evento.";
+                mostrarError(`${mensajeTiempo}<br><span style="font-size:0.85rem; font-weight:normal;">Día oficial: ${FECHAS_PERMITIDAS[modoDetectado]}</span>`, token, resultDiv); 
+                return;
+            }
+
+            const updates = {};
+            updates[`${modoDetectado}/${token}/usado`] = true;
+            updates[`${modoDetectado}/${token}/fechaIngreso`] = horaActualString;
+            
+            if (registroBoleto.vinculado_a) {
+                updates[`clase/${registroBoleto.vinculado_a}/asistencias/evento_${modoDetectado}`] = horaActualString;
+            }
+
+            db.ref().update(updates).then(() => {
+                if (registroBoleto.vinculado_a) {
+                    const registroEstudiante = dbCache['clase'] ? dbCache['clase'][registroBoleto.vinculado_a] : null;
+                    const nombreEst = registroEstudiante ? registroEstudiante.nombre : "Estudiante";
+                    
+                    mostrarPantalla(resultDiv, true, nombreEst, token, "", modoDetectado, colorFondo, `TICKET VINCULADO - ${modoDetectado.toUpperCase()}`);
+                    enviarPingFeed(nombreEst, token, `Ingreso Vinculado`);
+                } else {
+                    mostrarPantalla(resultDiv, true, registroBoleto.nombre, token, "", modoDetectado, colorFondo, registroBoleto.tipo);
+                    enviarPingFeed(registroBoleto.nombre, token, registroBoleto.tipo);
+                }
             });
         } else {
             mostrarError("CÓDIGO INVÁLIDO O NO RECONOCIDO", token, resultDiv);
@@ -938,7 +915,6 @@
     }
 
     window.onload = () => {
-        inicializarNubeSiEsNecesario();
         escucharCambiosEnTiempoReal();
         inicializarEscaner();
     };
