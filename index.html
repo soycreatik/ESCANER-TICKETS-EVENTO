@@ -210,23 +210,20 @@
             </div>
         </div>
         
-        <div style="text-align: center; margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
-            <button class="pill-btn" id="btn-toggle-asistencia" onclick="toggleAsistencia()" style="background: var(--accent-blue); color: #fff; z-index: 2;">📋 Abrir Control de Asistencia</button>
+       <div style="text-align: center; margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <button class="pill-btn" id="btn-toggle-asistencia" onclick="toggleAsistencia()" style="background: #2563eb; color: #fff; z-index: 2; border: none;">📋 Abrir Control de Asistencia</button>
+            <button class="pill-btn" id="btn-toggle-premios" onclick="togglePremios()" style="background: #fbbf24; color: #000; z-index: 2; border: none;">🎁 Ver Puntos y Premios</button>
         </div>
     </div>
 
-    <!-- PANEL DE ASISTENCIA OCULTO -->
-    <div class="glass-card" id="panel-asistencia" style="display: none; margin-top: 20px; max-width: 600px; width: 100%;">
-        <h3 style="color: var(--accent-color); margin-bottom: 10px; font-size: 1.1rem; text-transform: uppercase;">Horarios y Fechas de Clases</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; text-align: center;">
-            🕒 <strong>Domingos:</strong> 12:00 PM - 4:59 PM<br>
-            🕒 <strong>Miércoles:</strong> 7:45 PM - 8:59 PM<br>
-            <em>* El escáner solo aceptará ingresos en estos bloques horarios.</em>
+   <!-- PANEL DE PREMIOS OCULTO -->
+    <div class="glass-card" id="panel-premios" style="display: none; margin-top: 20px; max-width: 600px; width: 100%;">
+        <h3 style="color: #fbbf24; margin-bottom: 10px; font-size: 1.1rem; text-transform: uppercase;">🏆 Puntos en Vivo y Entregas</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
+            Revisa quiénes han canjeado premios desde su portal para entregárselos en la puerta.
         </p>
-
-        <h3 style="color: var(--accent-color); margin-bottom: 10px; border-top: 1px solid var(--card-border); padding-top: 15px; font-size: 1.1rem; text-transform: uppercase;">Control de Asistencia General</h3>
-        <div id="tabla-asistencia-alumnos" style="max-height: 300px; overflow-y: auto; text-align: left; font-size: 0.8rem; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-            Cargando listado de alumnos...
+        <div id="tabla-premios-alumnos" style="max-height: 350px; overflow-y: auto; text-align: left; font-size: 0.8rem; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+            Cargando datos de lealtad...
         </div>
     </div>
 
@@ -359,8 +356,15 @@
                 if (snapshot.exists()) {
                     dbCache[seccion] = snapshot.val();
                     actualizarEstadisticas();
+                    if (seccion === 'clase') actualizarTablaPremios(); // <--- Actualiza tabla de premios
                 }
             });
+        });
+
+        // <--- NUEVA ANTENA: Descarga el historial de exámenes para calcular puntos
+        db.ref('sistema/historial_examenes').on('value', (snapshot) => {
+            dbCache.examenes = snapshot.exists() ? snapshot.val() : {};
+            actualizarTablaPremios();
         });
 
         db.ref('live_feed').on('child_added', (snapshot) => {
@@ -877,6 +881,129 @@
                 inicializarEscaner();
             }
         }
+    }
+// ==========================================
+    // NUEVA SECCIÓN: CONTROL DE PREMIOS Y PUNTOS
+    // ==========================================
+    function togglePremios() {
+        const panel = document.getElementById('panel-premios');
+        const btn = document.getElementById('btn-toggle-premios');
+        
+        if (panel.style.display === 'none') {
+            document.getElementById('panel-asistencia').style.display = 'none'; // Ocultar el otro panel
+            document.getElementById('btn-toggle-asistencia').innerHTML = '📋 Abrir Control de Asistencia';
+            document.getElementById('btn-toggle-asistencia').style.background = '#2563eb';
+
+            panel.style.display = 'block';
+            btn.innerHTML = '❌ Cerrar Panel de Premios';
+            btn.style.background = 'var(--status-invalid)'; 
+            btn.style.color = '#fff';
+            setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+            actualizarTablaPremios();
+        } else {
+            panel.style.display = 'none';
+            btn.innerHTML = '🎁 Ver Puntos y Premios';
+            btn.style.background = '#fbbf24'; 
+            btn.style.color = '#000';
+        }
+    }
+
+    function actualizarTablaPremios() {
+        const contenedor = document.getElementById("tabla-premios-alumnos");
+        if (!contenedor || document.getElementById('panel-premios').style.display === 'none') return;
+        
+        if (!dbCache.clase) {
+            contenedor.innerHTML = "<p style='color: var(--text-muted);'>No hay alumnos en la base.</p>";
+            return;
+        }
+
+        let alumnosData = [];
+        const examenes = dbCache.examenes || {};
+
+        for (let codigo in dbCache.clase) {
+            if (!codigo.startsWith("CLASE-")) continue;
+            
+            let data = dbCache.clase[codigo];
+            let totalPuntos = 0;
+
+            // 1. Asistencias (50 pts) y Puntualidad (25 pts)
+            if (data.asistencias) {
+                Object.values(data.asistencias).forEach(reg => {
+                    const strReg = String(reg).toLowerCase();
+                    if (!strReg.startsWith("permiso")) {
+                        totalPuntos += 50;
+                        if (strReg.includes("virtualmente") || strReg.includes("puntual")) totalPuntos += 25;
+                    }
+                });
+            }
+
+            // 2. Exámenes (Aprobados * 15 pts)
+            Object.values(examenes).forEach(ex => {
+                if (ex.resultados && ex.resultados[codigo]) {
+                    const nota = parseFloat(ex.resultados[codigo].nota);
+                    if (nota >= 6.0) totalPuntos += Math.round(nota * 15);
+                }
+            });
+
+            // 3. Retos Sociales (50 pts c/u)
+            if (data.puntos_sociales) {
+                totalPuntos += (data.puntos_sociales * 50);
+            }
+
+            // 4. Canjes de Premios (Resta de puntos y Etiquetado)
+            let premiosHtml = "";
+            let puntosGastados = 0;
+            let numPremios = 0;
+
+            if (data.recompensas_canjeadas) {
+                if (data.recompensas_canjeadas.stickers) {
+                    puntosGastados += 400;
+                    premiosHtml += `<span style="background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; margin-right: 4px; font-weight: bold; display: inline-block; margin-bottom: 2px;">Stickers</span>`;
+                    numPremios++;
+                }
+                if (data.recompensas_canjeadas.gorra) {
+                    puntosGastados += 1000;
+                    premiosHtml += `<span style="background: #8b5cf6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; margin-right: 4px; font-weight: bold; display: inline-block; margin-bottom: 2px;">Gorra</span>`;
+                    numPremios++;
+                }
+                if (data.recompensas_canjeadas.camisa) {
+                    puntosGastados += 2000;
+                    premiosHtml += `<span style="background: #ec4899; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; margin-right: 4px; font-weight: bold; display: inline-block; margin-bottom: 2px;">Camisa</span>`;
+                    numPremios++;
+                }
+            }
+
+            if (premiosHtml === "") premiosHtml = `<span style="color: #666; font-style: italic;">Sin canjes</span>`;
+
+            const puntosFinales = Math.max(0, totalPuntos - puntosGastados);
+
+            alumnosData.push({
+                codigo: codigo,
+                nombre: data.nombre || "Sin nombre",
+                puntos: puntosFinales,
+                premiosHtml: premiosHtml,
+                numPremios: numPremios
+            });
+        }
+
+        // Ordenar: Los que tienen más puntos quedan arriba
+        alumnosData.sort((a, b) => b.puntos - a.puntos);
+
+        let html = '<table style="width: 100%; border-collapse: collapse; color: #fff;">';
+        html += '<tr style="background: rgba(251, 191, 36, 0.1); border-bottom: 1px solid rgba(251, 191, 36, 0.3);"><th style="padding: 8px; text-align: left; color: #fbbf24;">Alumno</th><th style="padding: 8px; text-align: center; color: #fbbf24;">Pts</th><th style="padding: 8px; text-align: left; color: #fbbf24;">Reclamo</th></tr>';
+
+        alumnosData.forEach(al => {
+            // Destacar a los alumnos que ya tienen un premio reclamado para que el equipo lo vea rápido
+            let badgeDestacado = al.numPremios > 0 ? "background: rgba(236, 72, 153, 0.15); border-left: 2px solid #ec4899;" : "";
+            
+            html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1); ${badgeDestacado}">
+                        <td style="padding: 8px; text-transform: capitalize;"><strong>${al.nombre.toLowerCase()}</strong><br><span style="font-family: monospace; font-size: 0.65rem; color: #9ca3af;">${al.codigo}</span></td>
+                        <td style="padding: 8px; text-align: center; font-weight: bold; color: #4ade80;">${al.puntos}</td>
+                        <td style="padding: 8px;">${al.premiosHtml}</td>
+                     </tr>`;
+        });
+        html += '</table>';
+        contenedor.innerHTML = html;
     }
 
     function exportarReporte() {
